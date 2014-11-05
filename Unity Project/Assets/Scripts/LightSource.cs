@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 
@@ -106,6 +107,12 @@ public class LightSource : MonoBehaviour
 	/// </summary>
 	private class Segment
 	{
+		public static Vector2 LineIntersection(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2)
+		{
+			return new Segment(a1, a2, 0.0f, 0.0f, 0.0f, 0.0f).LineIntersection(b1, b2);
+		}
+
+
 		public Vector2 P1 { get; private set; }
 		public Vector2 P2 { get; private set; }
 
@@ -616,21 +623,165 @@ public class LightSource : MonoBehaviour
 		//Now build the vertices of the light mesh.
 
 		//Start by finding the first segment that isn't completely behind the rotation range.
-		int startIndex;
+		int segIndex;
 		float startRot = WrapAngle(rotMin);
-		for (startIndex = 0; startIndex < segments.Count; ++startIndex)
-			if (segments[startIndex].A1 < startRot)
+		for (segIndex = 0; segIndex < segments.Count; ++segIndex)
+			if (segments[segIndex].A1 > startRot)
 				break;
 
 
 		//Now iterate through small increments of the rotation range and build the mesh.
 
-		List<Vector3> poses = new List<Vector3>();
+		List<Vector2> poses = new List<Vector2>();
 		List<Color> colors = new List<Color>();
+		List<int> indices = new List<int>();
 
-		
+		poses.Add(lightPos);
+		colors.Add(Color * Intensity);
 
-		LightMesh.vertices = poses.ToArray();
+		Vector2 lastPos = Vector2.zero;
+		Color lastCol = new Color(0.0f, 0.0f, 0.0f, 0.0f);
+
+		float invMaxDist = 1.0f / Radius;
+		float endRot = startRot + RotationRangeRadians;
+		bool firstIncrement = true;
+		bool wasObstructed = false;
+
+		for (float currentRot = startRot; currentRot <= endRot; currentRot += MeshRotationIncrementRadians)
+		{
+			//Get the current rotation.
+			Vector2 currentDir = GetVector(currentRot);
+			float wrappedRot = WrapAngle(currentRot);
+
+			//See if the next segment is occluding this light shaft.
+			if (segments.Count > 0 && segments[segIndex].A1 < wrappedRot)
+			{
+				wasObstructed = true;
+
+				//Create the first vertex.
+				
+				//If this is the first segment, start at "startRot".
+				if (firstIncrement)
+				{
+					Vector2 firstP = segments[segIndex].LineIntersection(lightPos, lightPos + currentDir);
+					float firstDist = Vector2.Distance(firstP, lightPos);
+
+					//Add this first vertex.
+					poses.Add(firstP);
+					colors.Add(colors[0] * (1.0f - (firstDist * invMaxDist)));
+				}
+				//Otherwise, just start at the beginning of the segment.
+				else
+				{
+					//First add a triangle to catch up from the last position
+					//    to the beginning of the segment.
+
+					poses.Add(lastPos);
+					colors.Add(lastCol);
+
+					poses.Add(lightPos + (Radius * (segments[segIndex].P1 - lightPos).normalized));
+					colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
+
+					indices.Add(0);
+					indices.Add(poses.Count - 2);
+					indices.Add(poses.Count - 1);
+
+
+					//Now add the beginning of the segment to the next triangle.
+					poses.Add(segments[segIndex].P1);
+					colors.Add(colors[0] * (1.0f - (segments[segIndex].D1 * invMaxDist)));
+				}
+
+
+				//Create the second vertex.
+
+				//If the segment passes through the end of the viewable range,
+				//    figure out where exactly the light should end.
+				if (segments[segIndex].A2 > endRot)
+				{
+					Vector2 toEnd = GetVector(endRot);
+					Vector2 secondP = segments[segIndex].LineIntersection(lightPos, lightPos + toEnd);
+					float secondDist = Vector2.Distance(secondP, lightPos);
+
+					poses.Add(secondP);
+					colors.Add(colors[0] * (1.0f - (secondDist * invMaxDist)));
+
+					//We're done here, so move the rotation counter to
+					//    something past the end of the range.
+					currentRot = segments[segIndex].A2;
+				}
+				//Otherwise, just add light that covers the entirety of the segment.
+				else
+				{
+					poses.Add(segments[segIndex].P2);
+					colors.Add(colors[0] * (1.0f - (segments[segIndex].D2 * invMaxDist)));
+
+					//Set the "previous" position to point towards the end of the segment,
+					//    but with the size of the full light radius.
+					lastPos = lightPos + (Radius * (segments[segIndex].P2 - lightPos).normalized);
+					lastCol = new UnityEngine.Color(0.0f, 0.0f, 0.0f, 0.0f);
+
+					//Move the rotation counter so that it starts at
+					//    the end of the segment in the next iteration.
+					currentRot = segments[segIndex].A2 - MeshRotationIncrementRadians;
+				}
+
+				//Add the indices.
+				indices.Add(0);
+				indices.Add(poses.Count - 2);
+				indices.Add(poses.Count - 1);
+				
+				//Move the segment counter to the next segment.
+				segIndex = (segIndex + 1) % segments.Count;
+			}
+			//Otherwise, we're clear to add unobstructed light.
+			else
+			{
+				wasObstructed = false;
+
+				//If this is the first iteration, don't add a triangle --
+				//    just calculate the beginning of the light for the next iteration.
+				if (firstIncrement)
+				{
+					lastPos = lightPos + (Radius * currentDir);
+					lastCol = new Color(0.0f, 0.0f, 0.0f, 0.0f);
+				}
+				//Otherwise, add a triangle starting from the end of the last unobstructed triangle.
+				else
+				{
+					poses.Add(lastPos);
+					colors.Add(lastCol);
+
+					poses.Add(lightPos + (Radius * currentDir));
+					colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
+
+					indices.Add(0);
+					indices.Add(poses.Count - 2);
+					indices.Add(poses.Count - 1);
+
+					lastPos = poses[poses.Count - 1];
+					lastCol = colors[colors.Count - 1];
+				}
+			}
+
+			firstIncrement = false;
+		}
+		//Fill in the last little gap between the end of the last triangle and the actual end of the range.
+		if (!wasObstructed)
+		{
+			poses.Add(lastPos);
+			colors.Add(lastCol);
+
+			poses.Add(lightPos + (Radius * GetVector(endRot)));
+			colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
+
+			indices.Add(0);
+			indices.Add(poses.Count - 2);
+			indices.Add(poses.Count - 1);
+		}
+
+		LightMesh.vertices = poses.ConvertAll(v => new Vector3(v.x, v.y, 0.0f)).ToArray();
 		LightMesh.colors = colors.ToArray();
+		LightMesh.triangles = indices.ToArray();
 	}
 }
