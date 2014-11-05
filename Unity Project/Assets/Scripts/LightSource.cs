@@ -394,7 +394,7 @@ public class LightSource : MonoBehaviour
 			{
 				Segment first = segments[i];
 
-				for (int j = 0; j < segments.Count; ++j)
+				for (int j = i; j < segments.Count; ++j)
 				{
 					if (j != i)
 					{
@@ -422,15 +422,16 @@ public class LightSource : MonoBehaviour
 							{
 								Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
 								Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
-								float fp1OnS_Angle = GetAngle(fp1OnS),
-									  fp2OnS_Angle = GetAngle(fp2OnS);
-								float fp1OnS_Dist = ,
-									  fp2OnS_Dist = ;
+								float fp1OnS_Dist = (fp1OnS - lightPos).magnitude,
+									  fp2OnS_Dist = (fp2OnS - lightPos).magnitude;
 
-								Segment firstPart = new Segment(second.P1, fp1OnS, second.A1, fp1OnS_Angle,)
+								Segment firstPart = new Segment(second.P1, fp1OnS, second.A1, first.A1,
+																second.D1, fp1OnS_Dist),
+										lastPart = new Segment(fp2OnS, second.P2, first.A2, second.A2,
+															   fp2OnS_Dist, second.D2);
 
-								segments.Insert(j + 1, new Segment(second.P1, ));
-								//TODO: Finish.
+								segments[j] = firstPart;
+								segments.Add(lastPart);
 							}
 							//Otherwise, ignore "first".
 							else
@@ -443,7 +444,26 @@ public class LightSource : MonoBehaviour
 						//First intersects second from above.
 						else if (fa1)
 						{
-							//TODO: Finish.
+							Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
+							Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
+							float dist1 = Vector2.Distance(fp1OnS, lightPos);
+
+							//If "first" is in front of "second", cut off "second"
+							//    at the point where "first" starts.
+							if (dist1 > first.D1)
+							{
+								segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1, second.D1, dist1);
+							}
+							//Otherwise, cut off the beginning of "first" at the point where "second" ends.
+							else
+							{
+								Vector2 srcToSP2 = (second.P2 - lightPos).normalized;
+								Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSP2);
+
+								segments[i] = new Segment(sp2OnF, first.P2, second.A2, first.A2,
+														  (sp2OnF - lightPos).magnitude, first.D2);
+								continue;
+							}
 						}
 						//First intersects second from behind.
 						else if (fa2)
@@ -467,7 +487,23 @@ public class LightSource : MonoBehaviour
 							{
 								Vector2 srcToSp2 = (second.P2 - lightPos).normalized;
 								Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSp2);
-								//TODO: Finish based on ealier case.
+								float sp1OnF_Dist = (sp1OnF - lightPos).magnitude,
+									  sp2OnF_Dist = (sp2OnF - lightPos).magnitude;
+
+								Segment firstPart = new Segment(first.P1, sp1OnF, first.A1, second.A1,
+																first.D1, sp1OnF_Dist),
+										lastPart = new Segment(sp2OnF, first.P2, second.A2, first.A2,
+															   sp2OnF_Dist, first.D2);
+
+								segments[i] = firstPart;
+								segments.Add(lastPart);
+							}
+							//Otherwise, ignore "second".
+							else
+							{
+								segments.RemoveAt(i);
+								i -= 1;
+								break;
 							}
 						}
 					}
