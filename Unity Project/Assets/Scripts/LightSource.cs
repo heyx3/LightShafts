@@ -272,6 +272,25 @@ public class LightSource : MonoBehaviour
 		}
 	}
 
+	/// <summary>
+	/// Represents a rotation range that is either empty or full with a segment.
+	/// </summary>
+	private class RotRange
+	{
+		public float A1 { get; private set; }
+		public float A2 { get; private set; }
+		public Segment SegmentOrNull { get; private set; }
+
+		/// <summary>
+		/// Creates a non-empty range.
+		/// </summary>
+		public RotRange(Segment seg) { A1 = seg.A1; A2 = seg.A2; SegmentOrNull = seg; }
+		/// <summary>
+		/// Creates an empty range.
+		/// </summary>
+		public RotRange(float a1, float a2) { A1 = a1; A2 = a2; SegmentOrNull = null; }
+	}
+
 	
 	void OnDrawGizmos()
 	{
@@ -594,6 +613,37 @@ public class LightSource : MonoBehaviour
 		}
 
 
+		//Next, remove all segments that are outside the light's angle range.
+		//TODO: Also clip all segments so that we don't have to worry whether a segment starts/ends outside the light bounds.
+		float wrappedMin = WrapAngle(rotMin),
+			  wrappedMax = WrapAngle(rotMax);
+		if (wrappedMin > wrappedMax)
+		{
+			//Split the range along the PI/-PI radian.
+			for (int i = 0; i < segments.Count; ++i)
+			{
+				if (segments[i].A1 < wrappedMin && segments[i].A1 > wrappedMax &&
+					segments[i].A2 < wrappedMin && segments[i].A2 > wrappedMax)
+				{
+					segments.RemoveAt(i);
+					i -= 1;
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < segments.Count; ++i)
+			{
+				if (segments[i].A1 > wrappedMax ||
+					segments[i].A2 < wrappedMin)
+				{
+					segments.RemoveAt(i);
+					i -= 1;
+				}
+			}
+		}
+
+
 		//Finally, sort the segments based on their angle, from -PI to PI.
 		List<Segment> sortedSegs = new List<Segment>();
 		sortedSegs.Capacity = segments.Count;
@@ -604,6 +654,7 @@ public class LightSource : MonoBehaviour
 			int i;
 			for (i = 0; i < sortedSegs.Count; ++i)
 			{
+				//TODO: Fix this check.
 				if (lastSeg.A1 > sortedSegs[i].A2)
 					break;
 			}
@@ -622,12 +673,42 @@ public class LightSource : MonoBehaviour
 			
 		//Now build the vertices of the light mesh.
 
-		//Start by finding the first segment that isn't completely behind the rotation range.
-		int segIndex;
+		//Start by building a saturated collection of the rotation ranges surrounding the circle.
+		List<RotRange> rotRanges = new List<RotRange>();
+		if (segments.Count == 0)
+		{
+			rotRanges.Add(new RotRange(-Mathf.PI, Mathf.PI));
+		}
+		else
+		{
+			if (segments[0].A1 > -Mathf.PI)
+				rotRanges.Add(new RotRange(-Mathf.PI, segments[0].A1));
+
+			for (int i = 0; i < segments.Count; ++i)
+			{
+				rotRanges.Add(new RotRange(segments[i]));
+
+				//If there is a gap between this segment and the next, add a gap into the collection.
+				if (i < segments.Count - 1 && segments[i].A2 < segments[i + 1].A1)
+					rotRanges.Add(new RotRange(segments[i].A2, segments[i + 1].A1));
+			}
+			//If there is space after the last segment, add that space to the collection.
+			if (segments[segments.Count - 1].A2 < Mathf.PI)
+			{
+				rotRanges.Add(new RotRange(segments[segments.Count - 1].A2, Mathf.PI));
+			}
+		}
+
+
+		//Next, find the first rot range that isn't completely behind the light's rot range.
+		int rotIndex;
 		float startRot = WrapAngle(rotMin);
-		for (segIndex = 0; segIndex < segments.Count; ++segIndex)
-			if (segments[segIndex].A1 > startRot)
+		for (rotIndex = 0; rotIndex < rotRanges.Count; ++rotIndex)
+			if (rotRanges[rotIndex].A2 > startRot)
 				break;
+		if (rotRanges.Count > 0)
+			rotIndex %= rotRanges.Count;
+		int startRotIndex = rotIndex;
 
 
 		//Now iterate through small increments of the rotation range and build the mesh.
@@ -636,11 +717,10 @@ public class LightSource : MonoBehaviour
 		List<Color> colors = new List<Color>();
 		List<int> indices = new List<int>();
 
-		poses.Add(lightPos);
+		poses.Add(Vector2.zero);
 		colors.Add(Color * Intensity);
 
 		Vector2 lastPos = Vector2.zero;
-		Color lastCol = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
 		float invMaxDist = 1.0f / Radius;
 		float endRot = startRot + RotationRangeRadians;
@@ -653,21 +733,22 @@ public class LightSource : MonoBehaviour
 			Vector2 currentDir = GetVector(currentRot);
 			float wrappedRot = WrapAngle(currentRot);
 
-			//See if the next segment is occluding this light shaft.
-			if (segments.Count > 0 && segments[segIndex].A1 < wrappedRot)
+			//See if the current rotation range is occluding this light shaft.
+			if (rotIndex != -1 && rotRanges[rotIndex].SegmentOrNull != null)
 			{
-				wasObstructed = true;
+				Segment seg = rotRanges[rotIndex].SegmentOrNull;
+
 
 				//Create the first vertex.
 				
 				//If this is the first segment, start at "startRot".
 				if (firstIncrement)
 				{
-					Vector2 firstP = segments[segIndex].LineIntersection(lightPos, lightPos + currentDir);
+					Vector2 firstP = seg.LineIntersection(lightPos, lightPos + currentDir);
 					float firstDist = Vector2.Distance(firstP, lightPos);
 
 					//Add this first vertex.
-					poses.Add(firstP);
+					poses.Add(firstP - lightPos);
 					colors.Add(colors[0] * (1.0f - (firstDist * invMaxDist)));
 				}
 				//Otherwise, just start at the beginning of the segment.
@@ -675,21 +756,22 @@ public class LightSource : MonoBehaviour
 				{
 					//First add a triangle to catch up from the last position
 					//    to the beginning of the segment.
+					if (wasObstructed)
+					{
+						poses.Add(lastPos);
+						colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
-					poses.Add(lastPos);
-					colors.Add(lastCol);
+						poses.Add((Radius * (seg.P1 - lightPos).normalized));
+						colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
-					poses.Add(lightPos + (Radius * (segments[segIndex].P1 - lightPos).normalized));
-					colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
-
-					indices.Add(0);
-					indices.Add(poses.Count - 2);
-					indices.Add(poses.Count - 1);
-
+						indices.Add(0);
+						indices.Add(poses.Count - 1);
+						indices.Add(poses.Count - 2);
+					}
 
 					//Now add the beginning of the segment to the next triangle.
-					poses.Add(segments[segIndex].P1);
-					colors.Add(colors[0] * (1.0f - (segments[segIndex].D1 * invMaxDist)));
+					poses.Add(seg.P1 - lightPos);
+					colors.Add(colors[0] * (1.0f - (seg.D1 * invMaxDist)));
 				}
 
 
@@ -697,70 +779,97 @@ public class LightSource : MonoBehaviour
 
 				//If the segment passes through the end of the viewable range,
 				//    figure out where exactly the light should end.
-				if (segments[segIndex].A2 > endRot)
+				if (seg.A2 > endRot)
 				{
 					Vector2 toEnd = GetVector(endRot);
-					Vector2 secondP = segments[segIndex].LineIntersection(lightPos, lightPos + toEnd);
+					Vector2 secondP = seg.LineIntersection(lightPos, lightPos + toEnd);
 					float secondDist = Vector2.Distance(secondP, lightPos);
 
-					poses.Add(secondP);
+					poses.Add(secondP - lightPos);
 					colors.Add(colors[0] * (1.0f - (secondDist * invMaxDist)));
 
 					//We're done here, so move the rotation counter to
 					//    something past the end of the range.
-					currentRot = segments[segIndex].A2;
+					currentRot = seg.A2;
 				}
 				//Otherwise, just add light that covers the entirety of the segment.
 				else
 				{
-					poses.Add(segments[segIndex].P2);
-					colors.Add(colors[0] * (1.0f - (segments[segIndex].D2 * invMaxDist)));
+					poses.Add(seg.P2 - lightPos);
+					colors.Add(colors[0] * (1.0f - (seg.D2 * invMaxDist)));
 
 					//Set the "previous" position to point towards the end of the segment,
 					//    but with the size of the full light radius.
-					lastPos = lightPos + (Radius * (segments[segIndex].P2 - lightPos).normalized);
-					lastCol = new UnityEngine.Color(0.0f, 0.0f, 0.0f, 0.0f);
+					lastPos = (Radius * (seg.P2 - lightPos).normalized);
 
 					//Move the rotation counter so that it starts at
 					//    the end of the segment in the next iteration.
-					currentRot = segments[segIndex].A2 - MeshRotationIncrementRadians;
+					currentRot = seg.A2 - MeshRotationIncrementRadians + 0.0001f;
 				}
 
 				//Add the indices.
 				indices.Add(0);
-				indices.Add(poses.Count - 2);
 				indices.Add(poses.Count - 1);
+				indices.Add(poses.Count - 2);
 				
 				//Move the segment counter to the next segment.
-				segIndex = (segIndex + 1) % segments.Count;
+				rotIndex = (rotIndex + 1) % rotRanges.Count;
+				if (rotIndex == startRotIndex)
+					rotIndex = -1;
+				wasObstructed = true;
+			}
+			//Otherwise, see if we've passed from the current rot range to the next one.
+			else if (rotIndex != -1 && rotRanges[rotIndex].A2 < currentRot)
+			{
+				wasObstructed = false;
+
+				//Add a triangle from the end of the previous light shaft to the end of this range.
+
+				poses.Add(lastPos);
+				colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
+
+				poses.Add(Radius * GetVector(rotRanges[rotIndex].A2));
+				colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
+
+				indices.Add(0);
+				indices.Add(poses.Count - 1);
+				indices.Add(poses.Count - 2);
+
+				lastPos = poses[poses.Count - 1];
+
+
+				//Move to the next range.
+				currentRot = rotRanges[rotIndex].A2;
+				rotIndex = (rotIndex + 1) % rotRanges.Count;
+				if (rotIndex == startRotIndex)
+					rotIndex = -1;
 			}
 			//Otherwise, we're clear to add unobstructed light.
 			else
 			{
 				wasObstructed = false;
 
+
 				//If this is the first iteration, don't add a triangle --
 				//    just calculate the beginning of the light for the next iteration.
 				if (firstIncrement)
 				{
-					lastPos = lightPos + (Radius * currentDir);
-					lastCol = new Color(0.0f, 0.0f, 0.0f, 0.0f);
+					lastPos = (Radius * currentDir);
 				}
 				//Otherwise, add a triangle starting from the end of the last unobstructed triangle.
 				else
 				{
 					poses.Add(lastPos);
-					colors.Add(lastCol);
+					colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
-					poses.Add(lightPos + (Radius * currentDir));
+					poses.Add((Radius * currentDir));
 					colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
 					indices.Add(0);
-					indices.Add(poses.Count - 2);
 					indices.Add(poses.Count - 1);
+					indices.Add(poses.Count - 2);
 
 					lastPos = poses[poses.Count - 1];
-					lastCol = colors[colors.Count - 1];
 				}
 			}
 
@@ -770,16 +879,17 @@ public class LightSource : MonoBehaviour
 		if (!wasObstructed)
 		{
 			poses.Add(lastPos);
-			colors.Add(lastCol);
+			colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
-			poses.Add(lightPos + (Radius * GetVector(endRot)));
+			poses.Add((Radius * GetVector(endRot)));
 			colors.Add(new Color(0.0f, 0.0f, 0.0f, 0.0f));
 
 			indices.Add(0);
-			indices.Add(poses.Count - 2);
 			indices.Add(poses.Count - 1);
+			indices.Add(poses.Count - 2);
 		}
 
+		LightMesh.Clear();
 		LightMesh.vertices = poses.ConvertAll(v => new Vector3(v.x, v.y, 0.0f)).ToArray();
 		LightMesh.colors = colors.ToArray();
 		LightMesh.triangles = indices.ToArray();
