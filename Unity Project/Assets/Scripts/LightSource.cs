@@ -336,13 +336,10 @@ public class LightSource : MonoBehaviour
 
 
 		//First, build the list of all line segments that might block the light.
-		//Ignore walls that are too far away.
 		GetSegments(lightPos);
-
 
 		//Next, simplify each individual segment.
 		SimplifySegments(lightPos);
-
 
 		//Now get any segments that are at least partly obscured by other segments and trim them.
 		CombineSegments(lightPos);
@@ -350,26 +347,9 @@ public class LightSource : MonoBehaviour
 		//Next, remove all segments that are outside the light's angle range.
 		FilterSegmentsByAngle(WrapAngle(rotMin), WrapAngle(rotMax));
 
-
 		//Finally, sort the segments based on their angle, from -PI to PI.
-		List<Segment> sortedSegs = new List<Segment>();
-		sortedSegs.Capacity = segments.Count;
-		while (segments.Count > 0)
-		{
-			Segment lastSeg = segments[segments.Count - 1];
-				
-			int i;
-			for (i = 0; i < sortedSegs.Count; ++i)
-			{
-				//TODO: Fix this check.
-				if (sortedSegs[i].A1 > lastSeg.A2)
-					break;
-			}
+		SortSegmentsByAngle();
 
-			sortedSegs.Insert(i, lastSeg);
-			segments.RemoveAt(segments.Count - 1);
-		}
-		segments = sortedSegs;
 
 		//DEBUG
 		string str = "";
@@ -536,12 +516,17 @@ public class LightSource : MonoBehaviour
 				float ang1 = GetAngle(intersections[0] - lightPos),
 					  ang2 = GetAngle(intersections[1] - lightPos);
 
-				bool firstIntersectIsP1 = (ang1 < ang2 || (ang1 > PIOver2 && ang2 < -PIOver2));
+				bool firstIntersectIsP1 = ((ang1 < ang2 && Mathf.Abs(ang1 - ang2) <= (Mathf.PI + 0.0001f)) ||
+										   (ang1 > PIOver2 && ang2 < -PIOver2));
 				if (!firstIntersectIsP1)
 				{
 					Vector2 int1 = intersections[0];
 					intersections[0] = intersections[1];
 					intersections[1] = int1;
+
+					float ang1Old = ang1;
+					ang1 = ang2;
+					ang2 = ang1Old;
 				}
 
 				if (p1Out && p2Out)
@@ -762,6 +747,31 @@ public class LightSource : MonoBehaviour
 				}
 			}
 		}
+	}
+	/// <summary>
+	/// Sorts the segments in "segments" in ascending order by angle.
+	/// </summary>
+	private void SortSegmentsByAngle()
+	{
+		List<Segment> sortedSegs = new List<Segment>();
+		sortedSegs.Capacity = segments.Count;
+		while (segments.Count > 0)
+		{
+			Segment lastSeg = segments[segments.Count - 1];
+				
+			int i;
+			for (i = 0; i < sortedSegs.Count; ++i)
+			{
+				if (sortedSegs[i].A1 == lastSeg.A2)
+					break;
+				if (sortedSegs[i].A1 > lastSeg.A2)
+					break;
+			}
+
+			sortedSegs.Insert(i, lastSeg);
+			segments.RemoveAt(segments.Count - 1);
+		}
+		segments = sortedSegs;
 	}
 	/// <summary>
 	/// Runs an iteration of the mesh-building loop, given all the loop arguments.
