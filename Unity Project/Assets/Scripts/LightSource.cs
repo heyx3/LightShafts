@@ -46,11 +46,29 @@ public class LightSource : MonoBehaviour
 	/// Gets the sign of the given value. Returns 1.0f if the value is exactly 0.0.
 	/// </summary>
 	private static float Sign(float x) { return (x < 0.0f ? -1.0f : 1.0f); }
+	/// <summary>
+	/// Converts the given Vector2 into a Vector3 with a Z of 0.0f.
+	/// </summary>
+	private static Vector3 ToV3(Vector2 v) { return new Vector3(v.x, v.y, 0.0f); }
+	/// <summary>
+	/// Wraps the angle around to keep it in the range [-PI, PI).
+	/// </summary>
+	private static float WrapAngle(float angle)
+	{
+		const float twoPi = 2.0f * Mathf.PI;
+		while (angle >= Mathf.PI) angle -= twoPi;
+		while (angle < -Mathf.PI) angle += twoPi;
+
+		return angle;
+	}
 
 
 	public float Radius = 50.0f;
 	public float RotationRangeRadians = Mathf.PI * 0.25f;
-	public Vector2 LightDir = new Vector2(1.0f, 0.0f);
+	public float LightAngle = 0.0f;
+	public float Intensity = 1.0f;
+
+	public Color Color = Color.white;
 
 	public float MeshRotationIncrementRadians = 0.1f;
 	public bool Static = false;
@@ -82,18 +100,21 @@ public class LightSource : MonoBehaviour
 
 
 	/// <summary>
-	/// A line segment, including two points, their distances to the light source,
-	///     and their relative angle from the light source.
-	/// The first point is NOT assumed to have a smaller "angle" value than the second point.
+	/// A line segment. Defined as two points, plus
+	/// their distances to the light source and their relative angle from the light source.
+	/// Immutable except for the "SwapPoints" function.
 	/// </summary>
 	private class Segment
 	{
 		public Vector2 P1 { get; private set; }
 		public Vector2 P2 { get; private set; }
+
 		public float A1 { get; private set; }
 		public float A2 { get; private set; }
+
 		public float D1 { get; private set; }
 		public float D2 { get; private set; }
+
 
 		public Vector2 P1ToP2 { get; private set; }
 		public Vector2 P1ToP2Norm { get; private set; }
@@ -102,8 +123,11 @@ public class LightSource : MonoBehaviour
 		/// <summary>
 		/// Pre-computed values to speed up line intersection test.
 		/// </summary>
-		private float x1_x2, y1_y2,
-					  x1y2_y1x2;
+		private float x1_x2, y1_y2;
+		/// <summary>
+		/// Pre-computed value to speed up line intersection test.
+		/// </summary>
+		private double x1y2_y1x2;
 		/// <summary>
 		/// Computes the pre-computed intersection test values.
 		/// </summary>
@@ -111,7 +135,7 @@ public class LightSource : MonoBehaviour
 		{
 			x1_x2 = P1.x - P2.x;
 			y1_y2 = P1.y - P2.y;
-			x1y2_y1x2 = (P1.x * P2.y) - (P1.y * P2.x);
+			x1y2_y1x2 = (double)(P1.x * P2.y) - (double)(P1.y * P2.x);
 
 			P1ToP2 = -(new Vector2(x1_x2, y1_y2));
 			SegmentLength = P1ToP2.magnitude;
@@ -178,8 +202,10 @@ public class LightSource : MonoBehaviour
 			//Do some linear algebra.
 			float denominator = 1.0f / ((x1_x2 * otherLin.y1_y2) -
 										(y1_y2 * otherLin.x1_x2));
-			return new Vector2(((x1y2_y1x2 * otherLin.x1_x2) - (x1_x2 * otherLin.x1y2_y1x2)) * denominator,
-							   ((x1y2_y1x2 * otherLin.y1_y2) - (y1_y2 * otherLin.x1y2_y1x2)) * denominator);
+			return new Vector2((float)((x1y2_y1x2 * otherLin.x1_x2) - (x1_x2 * otherLin.x1y2_y1x2)) *
+							       denominator,
+							   (float)((x1y2_y1x2 * otherLin.y1_y2) - (y1_y2 * otherLin.x1y2_y1x2)) *
+								   denominator);
 		}
 		/// <summary>
 		/// Gets the intersections between the given circle and the line this segment is a part of.
@@ -188,27 +214,48 @@ public class LightSource : MonoBehaviour
 		/// </summary>
 		public Vector2[] CircleLineIntersection(Vector2 circlePos, float radius)
 		{
-			float discriminant = (radius * radius * SegmentLength * SegmentLength) -
-								 (x1y2_y1x2 * x1y2_y1x2);
-			if (discriminant < 0.0f) return null;
+			//Transform the circle so it's at the origin.
+			Vector2[] result = new Segment(P1 - circlePos, P2 - circlePos,
+										   A1, A2, D1, D2).CircleLineIntersection(radius);
+			if (result == null) return result;
+			for (int i = 0; i < result.Length; ++i)
+				result[i] += circlePos;
+
+			return result;
+		}
+		/// <summary>
+		/// Gets the intersections between the given circle (centered at the origin) and
+		///     the line this segment is a part of.
+		/// Returns null, or 1 or 2 Vector2 values.
+		/// If there are two intersections, the second is guaranteed to have a larger Y value than the first.
+		/// </summary>
+		public Vector2[] CircleLineIntersection(float radius)
+		{
+			double discriminant = (radius * radius * SegmentLength * SegmentLength) -
+								      (x1y2_y1x2 * x1y2_y1x2);
+			if (discriminant < -0.01f) return null;
 
 
-			float numeratorX1 = x1y2_y1x2 * P1ToP2.y,
-				  numeratorY1 = -x1y2_y1x2 * P1ToP2.x,
-				  denominator = 1.0f / (SegmentLength * SegmentLength);
+			double numeratorX1 = x1y2_y1x2 * P1ToP2.y,
+				   numeratorY1 = -x1y2_y1x2 * P1ToP2.x,
+				   denominator = 1.0f / (SegmentLength * SegmentLength);
 			if (discriminant == 0.0f)
-				return new Vector2[1] { new Vector2(numeratorX1 * denominator, numeratorY1 * denominator) };
+				return new Vector2[1]
+				{
+					new Vector2((float)(numeratorX1 * denominator),
+								(float)(numeratorY1 * denominator)),
+				};
 
 
-			float sqrtDiscriminant = Mathf.Sqrt(discriminant),
-				  numeratorX2 = Sign(P1ToP2.y) * P1ToP2.x * sqrtDiscriminant,
-				  numeratorY2 = Mathf.Abs(P1ToP2.y) * sqrtDiscriminant;
+			double sqrtDiscriminant = System.Math.Sqrt(discriminant),
+				   numeratorX2 = Sign(P1ToP2.y) * P1ToP2.x * sqrtDiscriminant,
+				   numeratorY2 = Mathf.Abs(P1ToP2.y) * sqrtDiscriminant;
 			return new Vector2[2]
 			{
-				new Vector2((numeratorX1 - numeratorX2) * denominator,
-							(numeratorY1 - numeratorY2) * denominator),
-				new Vector2((numeratorX1 + numeratorX2) * denominator,
-							(numeratorY1 + numeratorY2) * denominator),
+				new Vector2((float)((numeratorX1 - numeratorX2) * denominator),
+							(float)((numeratorY1 - numeratorY2) * denominator)),
+				new Vector2((float)((numeratorX1 + numeratorX2) * denominator),
+							(float)((numeratorY1 + numeratorY2) * denominator)),
 			};
 		}
 
@@ -219,346 +266,371 @@ public class LightSource : MonoBehaviour
 	}
 
 	
+	void OnDrawGizmos()
+	{
+		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, 2.0f * Mathf.PI);
+		float rotMin = LightAngle - (0.5f * rotRange),
+			  rotMax = LightAngle + (0.5f * rotRange);
+
+		Vector3 pos = transform.position;
+
+		Gizmos.color = Color * Intensity;
+
+		//Draw the beginning/middle/end segments of the light cone.
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMin)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMax)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(LightAngle)));
+	}
+
 	void Update()
 	{
-		//Build the light mesh.
-		if (!Static || LightMesh.vertexCount == 0)
+		//Build the light mesh if it needs to be rebuilt.
+		if (Static && LightMesh.vertexCount > 0) return;
+
+		RebuildMesh();
+	}
+
+
+	/// <summary>
+	/// Builds/rebuilds the mesh that represents what this light source emits.
+	/// </summary>
+	public void RebuildMesh()
+	{
+		//Pre-compute some useful stuff.
+
+		Vector3 lightPos3D = MyTransform.position;
+		Vector2 lightPos = new Vector2(lightPos3D.x, lightPos3D.y);
+		
+		float rotCenter = WrapAngle(LightAngle);
+
+		const float PIOver2 = Mathf.PI * 0.5f;
+
+		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, 2.0f * Mathf.PI);
+		float rotMin = rotCenter - (0.5f * rotRange),
+			  rotMax = rotCenter + (0.5f * rotRange);
+
+		float rotMinDownOne = rotMin - (2.0f * Mathf.PI),
+			  rotMaxDownOne = rotMax - (2.0f * Mathf.PI),
+			  rotMinUpOne = rotMin + (2.0f * Mathf.PI),
+			  rotMaxUpOne = rotMax + (2.0f * Mathf.PI);
+
+
+		//First, build the list of all line segments that might block the light.
+		//Ignore walls that are too far away.
+		segments.Clear();
+		for (int i = 0; i < BoxWall.Walls.Count; ++i)
 		{
-			Vector3 lightPos3D = MyTransform.position;
-			Vector2 lightPos = new Vector2(lightPos3D.x, lightPos3D.y);
+			Bounds bounds3D = BoxWall.Walls[i].Box.bounds;
+			Rect bounds = new Rect(bounds3D.min.x, bounds3D.min.y, bounds3D.size.x, bounds3D.size.y);
 
-			const float PIOver2 = Mathf.PI * 0.5f;
+			Vector2 center = bounds.center,
+					min = bounds.min,
+					max = bounds.max;
 
-			float rotCenter = GetAngle(LightDir),
-				  rotMin = rotCenter - (0.5f * RotationRangeRadians),
-				  rotMax = rotCenter + (0.5f * RotationRangeRadians);
+			//Ignore this wall if it's too far away.
+			float wallRadius = new Vector2(bounds.size.x * 0.5f, bounds.size.y * 0.5f).magnitude;
+			float maxDist = Radius + wallRadius;
+			if ((lightPos - center).sqrMagnitude > (maxDist * maxDist))
+				continue;
 
-			float rotMinDownOne = rotMin - (2.0f * Mathf.PI),
-				  rotMaxDownOne = rotMax - (2.0f * Mathf.PI),
-				  rotMinUpOne = rotMin + (2.0f * Mathf.PI),
-				  rotMaxUpOne = rotMax + (2.0f * Mathf.PI);
+			//Only bother adding segments that are facing the light source.
+			//Left segment.
+			if (lightPos.x < min.x)
+				segments.Add(new Segment(min, new Vector2(min.x, max.y), lightPos));
+			//Right segment.
+			if (lightPos.x > max.x)
+				segments.Add(new Segment(new Vector2(max.x, min.y), max, lightPos));
+
+			//Top segment.
+			if (lightPos.y < min.y)
+				segments.Add(new Segment(min, new Vector2(max.x, min.y), lightPos));
+			//Bottom segment.
+			if (lightPos.y > max.y)
+				segments.Add(new Segment(new Vector2(min.x, max.y), max, lightPos));
+		}
 
 
-			//First, build the list of all line segments that can block the light.
-			//Ignore walls that are too far away.
-			segments.Clear();
-			for (int i = 0; i < BoxWall.Walls.Count; ++i)
+		//Next, simplify each individual segment:
+		//1) Flip any segments whose A1 is more than their A2 so that we always know
+		//    a segment's P1 comes before its P2 in terms of its angle.
+		//2) If the segment extends beyond the light radius, clip it to the edges of the light.
+		//3) If the segment crosses over the end of the unit circle (the transition from PI to -PI radians),
+		//    split it at the crossover point.
+		for (int i = 0; i < segments.Count; ++i)
+		{
+			//Do the points need to be swapped?
+			if (segments[i].A1 > segments[i].A2)
 			{
-				Bounds bounds3D = BoxWall.Walls[i].Box.bounds;
-				Rect bounds = new Rect(bounds3D.min.x, bounds3D.min.y, bounds3D.size.x, bounds3D.size.y);
-
-				Vector2 center = bounds.center,
-						min = bounds.min,
-						max = bounds.max;
-
-				//Ignore this wall if it's too far away.
-				float wallRadius = new Vector2(bounds.size.x * 0.5f, bounds.size.y * 0.5f).magnitude;
-				float maxDist = Radius + wallRadius;
-				if ((lightPos - center).sqrMagnitude > (maxDist * maxDist))
-					continue;
-
-				//Left segment.
-				if (lightPos.x < min.x)
-					segments.Add(new Segment(min, new Vector2(min.x, max.y), lightPos));
-				//Right segment.
-				if (lightPos.x > max.x)
-					segments.Add(new Segment(new Vector2(max.x, min.y), max, lightPos));
-
-				//Top segment.
-				if (lightPos.y < min.y)
-					segments.Add(new Segment(min, new Vector2(max.x, min.y), lightPos));
-				//Bottom segment.
-				if (lightPos.y > max.y)
-					segments.Add(new Segment(new Vector2(min.x, max.y), max, lightPos));
+				segments[i].SwapPoints();
 			}
 
-
-			//Next, simplify the individual segments:
-			//1) Flip any segments whose A1 is more than their A2 so that we always know
-			//    a segment's P1 comes before its P2.
-			//2) If the segment extends beyond the light radius, clip it to the edges of the light.
-			//3) If the segment crosses over the end of the unit circle (the transition from PI to -PI radians),
-			//    split it at the crossover point.
-			for (int i = 0; i < segments.Count; ++i)
+			//Does the segment extend beyond the edge of the light radius?
+			bool p1Out = segments[i].D1 > Radius,
+				 p2Out = segments[i].D2 > Radius;
+			if (p1Out || p2Out)
 			{
-				//Do the points need to be swapped?
+				Vector2[] intersections = segments[i].CircleLineIntersection(lightPos, Radius);
+
+				//If this segment doesn't really touch the light at all, ignore it.
+				if (intersections == null || intersections.Length == 1)
+				{
+					segments.RemoveAt(i);
+					i -= 1;
+					continue;
+				}
+
+				//Otherwise, see which intersections correspond with which segment points
+				//    and then swap intersections for segment points as necessary.
+
+				float ang1 = GetAngle(intersections[0] - lightPos),
+					  ang2 = GetAngle(intersections[1] - lightPos);
+
+				bool firstIntersectIsP1 = (ang1 < ang2 || (ang1 > PIOver2 && ang2 < -PIOver2));
+				if (!firstIntersectIsP1)
+				{
+					Vector2 int1 = intersections[0];
+					intersections[0] = intersections[1];
+					intersections[1] = int1;
+				}
+
+				if (p1Out && p2Out)
+				{
+					segments[i] = new Segment(intersections[0], intersections[1], ang1, ang2,
+											  (intersections[0] - lightPos).magnitude,
+											  (intersections[1] - lightPos).magnitude);
+				}
+				else if (p1Out)
+				{
+					segments[i] = new Segment(intersections[0], segments[i].P2, ang1, segments[i].A2,
+											  (intersections[0] - lightPos).magnitude, segments[i].D2);
+				}
+				else
+				{
+					segments[i] = new Segment(segments[i].P1, intersections[1], segments[i].A1, ang2,
+											  segments[i].D1, (intersections[1] - lightPos).magnitude);
+				}
+			}
+
+			//Does the segment cross over the end of the unit circle?
+			if (segments[i].A1 < -PIOver2 && segments[i].A2 > PIOver2)
+			{
+				//Get the point on the segment where the Y value is 0 (i.e. the exact point
+				//    where it crosses the end of the unit circle).
+				Vector2 velocity = segments[i].P2 - segments[i].P1;
+				float t = -segments[i].P1.y / velocity.y;
+				Vector2 splitPoint = segments[i].P1 + (velocity * t);
+				float dist = Vector2.Distance(splitPoint, lightPos);
+
+				//Insert the new segment for the top-half.
+				segments.Insert(i + 1, new Segment(segments[i].P2, splitPoint, segments[i].A2, Mathf.PI,
+												   segments[i].D2, dist));
+				//Cut the original segment to the bottom-half.
+				segments[i] = new Segment(splitPoint, segments[i].P1, -Mathf.PI, segments[i].A1,
+										  dist, segments[i].D1);
+				i += 1;
+
+
+				//Sanity check.
+				//TODO: Remove once this algorithm is verified.
+				if (segments[i - 1].A1 > segments[i - 1].A2)
+				{
+					Debug.LogError("Assert failed: segment " + i + ", value " + segments[i].ToString());
+				}
 				if (segments[i].A1 > segments[i].A2)
 				{
-					segments[i].SwapPoints();
-				}
-
-				//Does the segment extend beyond the edge of the light radius?
-				bool p1Out = segments[i].D1 > Radius,
-					 p2Out = segments[i].D2 > Radius;
-				if (p1Out || p2Out)
-				{
-					Vector2[] intersections = segments[i].CircleLineIntersection(lightPos, Radius);
-
-					//If this segment doesn't really touch the light at all, ignore it.
-					if (intersections == null || intersections.Length == 1)
-					{
-						segments.RemoveAt(i);
-						i -= 1;
-						continue;
-					}
-
-					//Otherwise, see which intersections correspond with which segment points
-					//    and then swap intersections for segment points as necessary.
-					float ang1 = GetAngle(intersections[0] - lightPos),
-						  ang2 = GetAngle(intersections[1] - lightPos);
-					bool firstIntersectIsP1 = (ang1 < ang2 || (ang1 > PIOver2 && ang2 < PIOver2));
-
-					if (p1Out && p2Out)
-					{
-						if (firstIntersectIsP1)
-						{
-							segments[i] = new Segment(intersections[0], intersections[1], ang1, ang2,
-													  (intersections[0] - lightPos).magnitude,
-													  (intersections[1] - lightPos).magnitude);
-						}
-						else
-						{
-							segments[i] = new Segment(intersections[1], intersections[0], ang2, ang1,
-													  (intersections[1] - lightPos).magnitude,
-													  (intersections[0] - lightPos).magnitude);
-						}
-					}
-					else if (p1Out)
-					{
-						if (firstIntersectIsP1)
-						{
-							segments[i] = new Segment(intersections[0], segments[i].P2, ang1, segments[i].A2,
-													  (intersections[0] - lightPos).magnitude,
-													  segments[i].D2);
-						}
-						else
-						{
-							segments[i] = new Segment(intersections[1], segments[i].P2, ang2, segments[i].A2,
-													  (intersections[1] - lightPos).magnitude,
-													  segments[i].D2);
-						}
-					}
-					else
-					{
-						if (firstIntersectIsP1)
-						{
-							segments[i] = new Segment(segments[i].P1, intersections[1], segments[i].A1, ang2,
-													  segments[i].D1,
-													  (intersections[1] - lightPos).magnitude);
-						}
-						else
-						{
-							segments[i] = new Segment(segments[i].P1, intersections[0], segments[i].A1, ang1,
-													  segments[i].D1,
-													  (intersections[0] - lightPos).magnitude);
-						}
-					}
-				}
-
-				//Does the segment cross over the end of the unit circle?
-				if (segments[i].A1 < -PIOver2 && segments[i].A2 > PIOver2)
-				{
-					//Get the point on the segment where the Y value is 0 (i.e. the exact point
-					//    where it crosses the end of the unit circle).
-					Vector2 velocity = segments[i].P2 - segments[i].P1;
-					float t = -segments[i].P1.y / velocity.y;
-					Vector2 splitPoint = segments[i].P1 + (velocity * t);
-					float dist = Vector2.Distance(splitPoint, lightPos);
-
-					//Insert the new segment for the top-half.
-					segments.Insert(i + 1, new Segment(segments[i].P2, splitPoint, segments[i].A2, Mathf.PI,
-													   segments[i].D2, dist));
-					//Cut the original segment to the bottom-half.
-					segments[i] = new Segment(splitPoint, segments[i].P1, -Mathf.PI, segments[i].A1,
-											  dist, segments[i].D1);
-					i += 1;
-
-
-					//Sanity check.
-					//TODO: Remove once this algorithm is verified.
-					if (segments[i].A1 > segments[i].A2)
-					{
-						Debug.LogError("Assert failed: segment " + i + ", value " + segments[i].ToString());
-					}
-					if (segments[i + 1].A1 > segments[i + 1].A2)
-					{
-						Debug.LogError("Assert failed: segment " + (i + 1) + ", value " + segments[i + 1].ToString());
-					}
+					Debug.LogError("Assert failed: segment " + (i + 1) + ", value " + segments[i + 1].ToString());
 				}
 			}
+		}
 
 
-			//Now get any segments that are at least partly obscured by other segments and trim them.
-			//After this algorithm is finished, no segment will obscure any other segment at all.
-			for (int i = 0; i < segments.Count; ++i)
+		//Now get any segments that are at least partly obscured by other segments and trim them.
+		//After this algorithm is finished, no segment will obscure any other segment at all.
+		for (int i = 0; i < segments.Count; ++i)
+		{
+			Segment first = segments[i];
+
+			for (int j = i; j < segments.Count; ++j)
 			{
-				Segment first = segments[i];
-
-				for (int j = i; j < segments.Count; ++j)
+				if (j != i)
 				{
-					if (j != i)
+					Segment second = segments[j];
+
+					bool fa1 = (first.A1 > second.A1 && first.A1 < second.A2),
+						 fa2 = (first.A2 > second.A1 && first.A2 < second.A2);
+					bool sa1 = (second.A1 > first.A1 && second.A1 < first.A2),
+						 sa2 = (second.A2 > first.A1 && second.A2 < first.A2);
+
+					//First is inside second.
+					if (fa1 && fa2)
 					{
-						Segment second = segments[j];
+						//Figure out which segment is in front.
+						//Assume the two segments don't intersect -- if "first.P1" is in front of
+						//    the second segment, then "first.P2" is as well.
+						Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
+						Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
+						float dist1 = Vector2.Distance(fp1OnS, lightPos);
 
-						bool fa1 = (first.A1 > second.A1 && first.A1 < second.A2),
-							 fa2 = (first.A2 > second.A1 && first.A2 < second.A2);
-						bool sa1 = (second.A1 > first.A1 && second.A1 < first.A2),
-							 sa2 = (second.A2 > first.A1 && second.A2 < first.A2);
-
-						//First is inside second.
-						if (fa1 && fa2)
-						{
-							//Figure out which segment is in front.
-							//Assume the two segments don't intersect -- if "first.P1" is in front of
-							//    the second segment, then "first.P2" is as well.
-							Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
-							Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
-							float dist1 = Vector2.Distance(fp1OnS, lightPos);
-
-							//If the first segment is in front of the second, split into three segments --
-							//    the part of "second" before "first", then "first", then the part of
-							//    "second" in front of "first".
-							if (dist1 > first.D1)
-							{
-								Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
-								Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
-								float fp1OnS_Dist = (fp1OnS - lightPos).magnitude,
-									  fp2OnS_Dist = (fp2OnS - lightPos).magnitude;
-
-								Segment firstPart = new Segment(second.P1, fp1OnS, second.A1, first.A1,
-																second.D1, fp1OnS_Dist),
-										lastPart = new Segment(fp2OnS, second.P2, first.A2, second.A2,
-															   fp2OnS_Dist, second.D2);
-
-								segments[j] = firstPart;
-								segments.Add(lastPart);
-							}
-							//Otherwise, ignore "first".
-							else
-							{
-								segments.RemoveAt(i);
-								i -= 1;
-								break;
-							}
-						}
-						//First intersects second from above.
-						else if (fa1)
-						{
-							Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
-							Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
-							float dist1 = Vector2.Distance(fp1OnS, lightPos);
-
-							//If "first" is in front of "second", cut off end of "second"
-							//    at the point where "first" starts.
-							if (dist1 > first.D1)
-							{
-								segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1,
-														  second.D1, dist1);
-							}
-							//Otherwise, cut off the beginning of "first" at the point where "second" ends.
-							else
-							{
-								Vector2 srcToSP2 = (second.P2 - lightPos).normalized;
-								Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSP2);
-
-								segments[i] = new Segment(sp2OnF, first.P2, second.A2, first.A2,
-														  (sp2OnF - lightPos).magnitude, first.D2);
-							}
-						}
-						//First intersects second from behind.
-						else if (fa2)
+						//If the first segment is in front of the second, split into three segments --
+						//    the part of "second" before "first", then "first", then the part of
+						//    "second" in front of "first".
+						if (dist1 > first.D1)
 						{
 							Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
 							Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
-							float dist2 = Vector2.Distance(fp2OnS, lightPos);
+							float fp1OnS_Dist = (fp1OnS - lightPos).magnitude,
+								  fp2OnS_Dist = (fp2OnS - lightPos).magnitude;
 
-							//If "first" is in front of "second", cut off the beginning of "second"
-							//    until the point where "first" ends.
-							if (dist2 > first.D2)
-							{
-								segments[j] = new Segment(fp2OnS, second.P2, first.A2, second.A2,
-														  dist2, second.D2);
-							}
-							//Otherwise, cut off the end of "first" at the beginning of "second".
-							else
-							{
-								Vector2 srcToSP1 = (second.P1 - lightPos).normalized;
-								Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1);
-								float dist1 = Vector2.Distance(sp1OnF, lightPos);
+							Segment firstPart = new Segment(second.P1, fp1OnS, second.A1, first.A1,
+															second.D1, fp1OnS_Dist),
+									lastPart = new Segment(fp2OnS, second.P2, first.A2, second.A2,
+														   fp2OnS_Dist, second.D2);
 
-								segments[i] = new Segment(first.P1, sp1OnF, first.A1, second.A1,
-														  first.D1, dist1);
-							}
+							segments[j] = firstPart;
+							segments.Add(lastPart);
 						}
-						//Second is inside first.
-						else if (sa1 && sa2)
+						//Otherwise, ignore "first".
+						else
 						{
-							//Figure out which segment is in front.
-							//Assume the two segments don't intersect -- if "second.P1" is in front of
-							//    the first segment, then "second.P2" is as well.
+							segments.RemoveAt(i);
+							i -= 1;
+							break;
+						}
+					}
+					//First intersects second from above.
+					else if (fa1)
+					{
+						Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
+						Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
+						float dist1 = Vector2.Distance(fp1OnS, lightPos);
+
+						//If "first" is in front of "second", cut off end of "second"
+						//    at the point where "first" starts.
+						if (dist1 > first.D1)
+						{
+							segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1,
+													  second.D1, dist1);
+						}
+						//Otherwise, cut off the beginning of "first" at the point where "second" ends.
+						else
+						{
+							Vector2 srcToSP2 = (second.P2 - lightPos).normalized;
+							Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSP2);
+
+							segments[i] = new Segment(sp2OnF, first.P2, second.A2, first.A2,
+													  (sp2OnF - lightPos).magnitude, first.D2);
+						}
+					}
+					//First intersects second from behind.
+					else if (fa2)
+					{
+						Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
+						Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
+						float dist2 = Vector2.Distance(fp2OnS, lightPos);
+
+						//If "first" is in front of "second", cut off the beginning of "second"
+						//    until the point where "first" ends.
+						if (dist2 > first.D2)
+						{
+							segments[j] = new Segment(fp2OnS, second.P2, first.A2, second.A2,
+													  dist2, second.D2);
+						}
+						//Otherwise, cut off the end of "first" at the beginning of "second".
+						else
+						{
 							Vector2 srcToSP1 = (second.P1 - lightPos).normalized;
 							Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1);
 							float dist1 = Vector2.Distance(sp1OnF, lightPos);
 
-							//If the second segment is in front of the first, split into three segments --
-							//    the part of "first" before "second", then "second", then the part of
-							//    "first" in front of "second".
-							if (dist1 > second.D1)
-							{
-								Vector2 srcToSp2 = (second.P2 - lightPos).normalized;
-								Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSp2);
-								float sp1OnF_Dist = (sp1OnF - lightPos).magnitude,
-									  sp2OnF_Dist = (sp2OnF - lightPos).magnitude;
+							segments[i] = new Segment(first.P1, sp1OnF, first.A1, second.A1,
+													  first.D1, dist1);
+						}
+					}
+					//Second is inside first.
+					else if (sa1 && sa2)
+					{
+						//Figure out which segment is in front.
+						//Assume the two segments don't intersect -- if "second.P1" is in front of
+						//    the first segment, then "second.P2" is as well.
+						Vector2 srcToSP1 = (second.P1 - lightPos).normalized;
+						Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1);
+						float dist1 = Vector2.Distance(sp1OnF, lightPos);
 
-								Segment firstPart = new Segment(first.P1, sp1OnF, first.A1, second.A1,
-																first.D1, sp1OnF_Dist),
-										lastPart = new Segment(sp2OnF, first.P2, second.A2, first.A2,
-															   sp2OnF_Dist, first.D2);
+						//If the second segment is in front of the first, split into three segments --
+						//    the part of "first" before "second", then "second", then the part of
+						//    "first" in front of "second".
+						if (dist1 > second.D1)
+						{
+							Vector2 srcToSp2 = (second.P2 - lightPos).normalized;
+							Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSp2);
+							float sp1OnF_Dist = (sp1OnF - lightPos).magnitude,
+								  sp2OnF_Dist = (sp2OnF - lightPos).magnitude;
 
-								segments[i] = firstPart;
-								segments.Add(lastPart);
-							}
-							//Otherwise, ignore "second".
-							else
-							{
-								segments.RemoveAt(i);
-								i -= 1;
-								break;
-							}
+							Segment firstPart = new Segment(first.P1, sp1OnF, first.A1, second.A1,
+															first.D1, sp1OnF_Dist),
+									lastPart = new Segment(sp2OnF, first.P2, second.A2, first.A2,
+														   sp2OnF_Dist, first.D2);
+
+							segments[i] = firstPart;
+							segments.Add(lastPart);
+						}
+						//Otherwise, ignore "second".
+						else
+						{
+							segments.RemoveAt(i);
+							i -= 1;
+							break;
 						}
 					}
 				}
 			}
+		}
 
 
-			//Finally, sort the segments based on their angle, from -PI to PI.
-			List<Segment> sortedSegs = new List<Segment>();
-			sortedSegs.Capacity = segments.Count;
-			while (segments.Count > 0)
-			{
-				Segment lastSeg = segments[segments.Count - 1];
+		//Finally, sort the segments based on their angle, from -PI to PI.
+		List<Segment> sortedSegs = new List<Segment>();
+		sortedSegs.Capacity = segments.Count;
+		while (segments.Count > 0)
+		{
+			Segment lastSeg = segments[segments.Count - 1];
 				
-				int i;
-				for (i = 0; i < sortedSegs.Count; ++i)
-				{
-					if (lastSeg.A1 > sortedSegs[i].A2)
-						break;
-				}
-
-				sortedSegs.Insert(i, lastSeg);
-				segments.RemoveAt(segments.Count - 1);
+			int i;
+			for (i = 0; i < sortedSegs.Count; ++i)
+			{
+				if (lastSeg.A1 > sortedSegs[i].A2)
+					break;
 			}
-			segments = sortedSegs;
+
+			sortedSegs.Insert(i, lastSeg);
+			segments.RemoveAt(segments.Count - 1);
+		}
+		segments = sortedSegs;
+
+		//DEBUG
+		string str = "";
+		foreach (Segment seg in segments)
+			str += seg.ToString() + "; ";
+		Debug.Log(segments.Count > 0 ? str.Substring(0, str.Length - 2) : str);
 
 			
-			//Now build the vertices of the light mesh.
+		//Now build the vertices of the light mesh.
 
-			//Start by finding the first segment that isn't completely behind the rotation range.
-			//TODO: Implement.
+		//Start by finding the first segment that isn't completely behind the rotation range.
+		int startIndex;
+		float startRot = WrapAngle(rotMin);
+		for (startIndex = 0; startIndex < segments.Count; ++startIndex)
+			if (segments[startIndex].A1 < startRot)
+				break;
 
 
-			//Now iterate through small increments of the rotation range.
-			//TODO: Implement.
-		}
+		//Now iterate through small increments of the rotation range and build the mesh.
+
+		List<Vector3> poses = new List<Vector3>();
+		List<Color> colors = new List<Color>();
+
+		
+
+		LightMesh.vertices = poses.ToArray();
+		LightMesh.colors = colors.ToArray();
 	}
 }

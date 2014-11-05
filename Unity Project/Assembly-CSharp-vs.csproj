@@ -48,6 +48,7 @@
   <ItemGroup>
      <Compile Include="Assets\Scripts\BoxWall.cs" />
      <Compile Include="Assets\Scripts\LightSource.cs" />
+     <None Include="Assets\Shaders\LightMeshShader.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

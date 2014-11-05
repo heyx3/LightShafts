@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\BoxWall.cs" />
     <Compile Include="Assets\Scripts\LightSource.cs" />
+    <None Include="Assets\Shaders\LightMeshShader.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\SyntaxTree\UnityVS\2013\UnityVS.CSharp.targets" />
 </Project>
