@@ -448,11 +448,12 @@ public class LightSource : MonoBehaviour
 							Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
 							float dist1 = Vector2.Distance(fp1OnS, lightPos);
 
-							//If "first" is in front of "second", cut off "second"
+							//If "first" is in front of "second", cut off end of "second"
 							//    at the point where "first" starts.
 							if (dist1 > first.D1)
 							{
-								segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1, second.D1, dist1);
+								segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1,
+														  second.D1, dist1);
 							}
 							//Otherwise, cut off the beginning of "first" at the point where "second" ends.
 							else
@@ -462,13 +463,32 @@ public class LightSource : MonoBehaviour
 
 								segments[i] = new Segment(sp2OnF, first.P2, second.A2, first.A2,
 														  (sp2OnF - lightPos).magnitude, first.D2);
-								continue;
 							}
 						}
 						//First intersects second from behind.
 						else if (fa2)
 						{
-							//TODO: Finish.
+							Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
+							Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
+							float dist2 = Vector2.Distance(fp2OnS, lightPos);
+
+							//If "first" is in front of "second", cut off the beginning of "second"
+							//    until the point where "first" ends.
+							if (dist2 > first.D2)
+							{
+								segments[j] = new Segment(fp2OnS, second.P2, first.A2, second.A2,
+														  dist2, second.D2);
+							}
+							//Otherwise, cut off the end of "first" at the beginning of "second".
+							else
+							{
+								Vector2 srcToSP1 = (second.P1 - lightPos).normalized;
+								Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1);
+								float dist1 = Vector2.Distance(sp1OnF, lightPos);
+
+								segments[i] = new Segment(first.P1, sp1OnF, first.A1, second.A1,
+														  first.D1, dist1);
+							}
 						}
 						//Second is inside first.
 						else if (sa1 && sa2)
