@@ -382,12 +382,14 @@ public class LightSource : MonoBehaviour
 
 		float startRot = WrapAngle(rotMin),
 			  endRot = startRot + rotRange;
+		
 
 		//If the rotation range crosses the end of the unit circle, split into two halves along the end.
 		if (WrapAngle(endRot) < startRot)
 		{
 			BuildFinalMesh(rotRanges, poses, colors, indices, lightPos, Radius,
 						   MeshRotationIncrementRadians, startRot, Mathf.PI);
+
 			BuildFinalMesh(rotRanges, poses, colors, indices, lightPos, Radius,
 						   MeshRotationIncrementRadians, -Mathf.PI, WrapAngle(endRot));
 		}
@@ -556,6 +558,9 @@ public class LightSource : MonoBehaviour
 	/// </summary>
 	private void CombineSegments(Vector2 lightPos)
 	{
+		//Ignore segments if they are negligibly small.
+		const float minSegmentSize = 0.1f;
+
 		//Search each pair of segments for any occlusions.
 		for (int i = 0; i < segments.Count; ++i)
 		{
@@ -568,28 +573,31 @@ public class LightSource : MonoBehaviour
 					Segment second = segments[j];
 
 					//See which points are inside the other segment.
-					bool fa1 = (first.A1 > second.A1 && first.A1 < second.A2),
-						 fa2 = (first.A2 > second.A1 && first.A2 < second.A2);
-					bool sa1 = (second.A1 > first.A1 && second.A1 < first.A2),
-						 sa2 = (second.A2 > first.A1 && second.A2 < first.A2);
+					const float margin = 0.001f;
+					bool fa1 = ((first.A1 - second.A1 >= -margin) && (first.A1 - second.A2 <= margin)),
+						 fa2 = ((first.A2 - second.A1 >= -margin) && (first.A2 - second.A2 <= margin));
+					bool sa1 = ((second.A1 - first.A1 >= -margin) && (second.A1 - first.A2 <= margin)),
+						 sa2 = ((second.A2 - first.A1 >= -margin) && (second.A2 - first.A2 <= margin));
 
 					//First is inside second.
 					if (fa1 && fa2)
 					{
 						//Figure out which segment is in front.
-						//Assume the two segments don't intersect -- if "first.P1" is in front of
-						//    the second segment, then "first.P2" is as well.
-						Vector2 srcToFP1 = (first.P1 - lightPos).normalized;
-						Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1);
-						float dist1 = Vector2.Distance(fp1OnS, lightPos);
+						//Get the distance from both ends of "first" to "second".
+						Vector2 srcToFP1 = (first.P1 - lightPos).normalized,
+								srcToFP2 = (first.P2 - lightPos).normalized;
+						Vector2 fp1OnS = second.LineIntersection(lightPos, lightPos + srcToFP1),
+								fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
+						float dist1 = Vector2.Distance(fp1OnS, lightPos),
+							  dist2 = Vector2.Distance(fp2OnS, lightPos);
 
 						//If the first segment is in front of the second, split into three segments --
 						//    the part of "second" before "first", then "first", then the part of
 						//    "second" in front of "first".
-						if (dist1 > first.D1)
+						bool p1IsFarthest = ((fp1OnS - first.P1).sqrMagnitude > (fp2OnS - first.P2).sqrMagnitude);
+						if ((p1IsFarthest && dist1 > first.D1) ||
+							(!p1IsFarthest && dist2 > first.D2))
 						{
-							Vector2 srcToFP2 = (first.P2 - lightPos).normalized;
-							Vector2 fp2OnS = second.LineIntersection(lightPos, lightPos + srcToFP2);
 							float fp1OnS_Dist = (fp1OnS - lightPos).magnitude,
 								  fp2OnS_Dist = (fp2OnS - lightPos).magnitude;
 
@@ -599,7 +607,22 @@ public class LightSource : MonoBehaviour
 														   fp2OnS_Dist, second.D2);
 
 							segments[j] = firstPart;
-							segments.Add(lastPart);
+							if (segments[j].SegmentLength < minSegmentSize)
+							{
+								if (lastPart.SegmentLength < minSegmentSize)
+								{
+									segments.RemoveAt(j);
+									j -= 1;
+								}
+								else
+								{
+									segments[j] = lastPart;
+								}
+							}
+							else
+							{
+								segments.Add(lastPart);
+							}
 						}
 						//Otherwise, ignore "first".
 						else
@@ -607,6 +630,64 @@ public class LightSource : MonoBehaviour
 							segments.RemoveAt(i);
 							i -= 1;
 							break;
+						}
+					}
+					//Second is inside first.
+					else if (sa1 && sa2)
+					{
+						//Figure out which segment is in front.
+						//Assume the two segments don't intersect -- if "second.P1" is in front of
+						//    the first segment, then "second.P2" is as well.
+						Vector2 srcToSP1 = (second.P1 - lightPos).normalized,
+								srcToSP2 = (second.P2 - lightPos).normalized;
+						Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1),
+								sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSP2);
+						float dist1 = Vector2.Distance(sp1OnF, lightPos),
+							  dist2 = Vector2.Distance(sp2OnF, lightPos);
+
+						//If the second segment is in front of the first, split into three segments --
+						//    the part of "first" before "second", then "second", then the part of
+						//    "first" in front of "second".
+						bool p1IsFarthest = ((sp1OnF - second.P1).sqrMagnitude > (sp2OnF - second.P2).sqrMagnitude);
+						if ((p1IsFarthest && dist1 > second.D1) ||
+							(!p1IsFarthest && dist2 > second.D2))
+						{
+							float sp1OnF_Dist = (sp1OnF - lightPos).magnitude,
+								  sp2OnF_Dist = (sp2OnF - lightPos).magnitude;
+
+							Segment firstPart = new Segment(first.P1, sp1OnF, first.A1, second.A1,
+															first.D1, sp1OnF_Dist),
+									lastPart = new Segment(sp2OnF, first.P2, second.A2, first.A2,
+														   sp2OnF_Dist, first.D2);
+
+							segments[i] = firstPart;
+
+							if (segments[i].SegmentLength < minSegmentSize)
+							{
+								if (lastPart.SegmentLength < minSegmentSize)
+								{
+									segments.RemoveAt(i);
+									i -= 1;
+									break;
+
+								}
+								else
+								{
+									segments[i] = lastPart;
+								}
+							}
+							else
+							{
+								segments.Add(lastPart);
+							}
+
+							first = segments[i];
+						}
+						//Otherwise, ignore "second".
+						else
+						{
+							segments.RemoveAt(j);
+							j -= 1;
 						}
 					}
 					//First intersects second from above.
@@ -622,6 +703,11 @@ public class LightSource : MonoBehaviour
 						{
 							segments[j] = new Segment(second.P1, fp1OnS, second.A1, first.A1,
 													  second.D1, dist1);
+							if (segments[j].SegmentLength < minSegmentSize)
+							{
+								segments.RemoveAt(j);
+								j -= 1;
+							}
 						}
 						//Otherwise, cut off the beginning of "first" at the point where "second" ends.
 						else
@@ -631,6 +717,13 @@ public class LightSource : MonoBehaviour
 
 							segments[i] = new Segment(sp2OnF, first.P2, second.A2, first.A2,
 													  (sp2OnF - lightPos).magnitude, first.D2);
+							if (segments[i].SegmentLength < minSegmentSize)
+							{
+								segments.RemoveAt(i);
+								i -= 1;
+								break;
+							}
+							first = segments[i];
 						}
 					}
 					//First intersects second from behind.
@@ -641,11 +734,16 @@ public class LightSource : MonoBehaviour
 						float dist2 = Vector2.Distance(fp2OnS, lightPos);
 
 						//If "first" is in front of "second", cut off the beginning of "second"
-						//    until the point where "first" ends.
+						//    at the point where "first" ends.
 						if (dist2 > first.D2)
 						{
 							segments[j] = new Segment(fp2OnS, second.P2, first.A2, second.A2,
 													  dist2, second.D2);
+							if (segments[j].SegmentLength < minSegmentSize)
+							{
+								segments.RemoveAt(j);
+								j -= 1;
+							}
 						}
 						//Otherwise, cut off the end of "first" at the beginning of "second".
 						else
@@ -656,42 +754,13 @@ public class LightSource : MonoBehaviour
 
 							segments[i] = new Segment(first.P1, sp1OnF, first.A1, second.A1,
 													  first.D1, dist1);
-						}
-					}
-					//Second is inside first.
-					else if (sa1 && sa2)
-					{
-						//Figure out which segment is in front.
-						//Assume the two segments don't intersect -- if "second.P1" is in front of
-						//    the first segment, then "second.P2" is as well.
-						Vector2 srcToSP1 = (second.P1 - lightPos).normalized;
-						Vector2 sp1OnF = first.LineIntersection(lightPos, lightPos + srcToSP1);
-						float dist1 = Vector2.Distance(sp1OnF, lightPos);
-
-						//If the second segment is in front of the first, split into three segments --
-						//    the part of "first" before "second", then "second", then the part of
-						//    "first" in front of "second".
-						if (dist1 > second.D1)
-						{
-							Vector2 srcToSp2 = (second.P2 - lightPos).normalized;
-							Vector2 sp2OnF = first.LineIntersection(lightPos, lightPos + srcToSp2);
-							float sp1OnF_Dist = (sp1OnF - lightPos).magnitude,
-								  sp2OnF_Dist = (sp2OnF - lightPos).magnitude;
-
-							Segment firstPart = new Segment(first.P1, sp1OnF, first.A1, second.A1,
-															first.D1, sp1OnF_Dist),
-									lastPart = new Segment(sp2OnF, first.P2, second.A2, first.A2,
-														   sp2OnF_Dist, first.D2);
-
-							segments[i] = firstPart;
-							segments.Add(lastPart);
-						}
-						//Otherwise, ignore "second".
-						else
-						{
-							segments.RemoveAt(j);
-							i -= 1;
-							break;
+							if (segments[i].SegmentLength < minSegmentSize)
+							{
+								segments.RemoveAt(i);
+								i -= 1;
+								break;
+							}
+							first = segments[i];
 						}
 					}
 				}
