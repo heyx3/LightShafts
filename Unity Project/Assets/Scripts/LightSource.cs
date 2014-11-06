@@ -357,13 +357,6 @@ public class LightSource : MonoBehaviour
 		//Finally, sort the segments based on their angle, from -PI to PI.
 		SortSegmentsByAngle();
 
-
-		//DEBUG
-		string str = "";
-		foreach (Segment seg in segments)
-			str += seg.ToString() + "; ";
-		Debug.Log(segments.Count > 0 ? str.Substring(0, str.Length - 2) : str);
-
 			
 		//Now build the vertices of the light mesh.
 
@@ -884,12 +877,6 @@ public class LightSource : MonoBehaviour
 														   seg.D1, Vector2.Distance(intersect, lightPos))));
 				}
 			}
-
-
-			string str = "";
-			for (int i = 0; i < newRanges.Count; ++i)
-				str += newRanges[i].ToString() + ", ";
-			Debug.Log(str.Substring(0, str.Length - 2));
 
 
 			//Now just build each range individually.
