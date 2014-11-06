@@ -2,6 +2,7 @@
 {
 	Properties
 	{
+		_ZPos("Z Position", Float) = -1.0
 	}
 	SubShader
 	{
@@ -13,6 +14,9 @@
 
 			#pragma vertex vert
 			#pragma fragment frag
+
+
+			uniform float _ZPos;
 
 
 			struct vertIn
@@ -30,7 +34,7 @@
 			vertOut vert(vertIn v) : POSITION
 			{
 				vertOut o;
-				o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.pos = mul(UNITY_MATRIX_MVP, float4(v.vertex.x, v.vertex.y, _ZPos, v.vertex.w));
 				o.col = v.color;
 				return o;
 			}

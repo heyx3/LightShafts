@@ -15,18 +15,11 @@ public class LightSource : MonoBehaviour
 	/// </summary>
 	public static List<LightSource> Sources = new List<LightSource>();
 
-	/// <summary>
-	/// Gets the angle (radians) of the given direction.
-	/// Pointing left ({-1, 0}) = PI and -PI
-	/// Pointing up ({0, -1}) = -PI/2
-	/// Pointing right ({1, 0}) = 0
-	/// Pointing down ({0, 1}) = PI/2
-	/// </summary>
-	private static float GetAngle(Vector2 dir) { return Mathf.Atan2(dir.y, dir.x); }
-	/// <summary>
-	/// Gets the vector pointing from the origin in the direction of the given angle.
-	/// </summary>
-	private static Vector2 GetVector(float angle) { return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); }
+
+	private static float GetAngle(Vector2 dir) { return AngleCalculations.GetAngle(dir); }
+	private static Vector2 GetVector(float angle) { return AngleCalculations.GetVector(angle); }
+	private static float WrapAngle(float angle) { return AngleCalculations.WrapAngle(angle); }
+
 	/// <summary>
 	/// Gets the smallest distance squared between the given line SEGMENT and the given other point.
 	/// </summary>
@@ -51,17 +44,6 @@ public class LightSource : MonoBehaviour
 	/// Converts the given Vector2 into a Vector3 with a Z of 0.0f.
 	/// </summary>
 	private static Vector3 ToV3(Vector2 v) { return new Vector3(v.x, v.y, 0.0f); }
-	/// <summary>
-	/// Wraps the angle around to keep it in the range [-PI, PI).
-	/// </summary>
-	private static float WrapAngle(float angle)
-	{
-		const float twoPi = 2.0f * Mathf.PI;
-		while (angle >= Mathf.PI) angle -= twoPi;
-		while (angle < -Mathf.PI) angle += twoPi;
-
-		return angle;
-	}
 
 
 	public float Radius = 50.0f;
@@ -99,6 +81,33 @@ public class LightSource : MonoBehaviour
 		Sources.Remove(this);
 	}
 
+	void OnDrawGizmos()
+	{
+		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, (2.0f * Mathf.PI) - 0.0001f),
+			  rotCenter = LightAngle + (Mathf.Deg2Rad * transform.eulerAngles.z);
+		float rotMin = rotCenter - (0.5f * rotRange),
+			  rotMax = rotCenter + (0.5f * rotRange);
+
+		Vector3 pos = transform.position;
+
+		Gizmos.color = Color * Intensity;
+
+		//Draw the beginning/middle/end segments of the light cone.
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMin)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMax)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotCenter)));
+	}
+
+	void Update()
+	{
+		//Build the light mesh if it needs to be rebuilt.
+		if (Static && LightMesh.vertexCount > 0) return;
+
+		RebuildMesh();
+	}
+
+
+	#region Mesh-building
 
 
 	/// <summary>
@@ -298,31 +307,6 @@ public class LightSource : MonoBehaviour
 		}
 	}
 
-	
-	void OnDrawGizmos()
-	{
-		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, (2.0f * Mathf.PI) - 0.0001f);
-		float rotMin = LightAngle - (0.5f * rotRange),
-			  rotMax = LightAngle + (0.5f * rotRange);
-
-		Vector3 pos = transform.position;
-
-		Gizmos.color = Color * Intensity;
-
-		//Draw the beginning/middle/end segments of the light cone.
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMin)));
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMax)));
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(LightAngle)));
-	}
-
-	void Update()
-	{
-		//Build the light mesh if it needs to be rebuilt.
-		if (Static && LightMesh.vertexCount > 0) return;
-
-		RebuildMesh();
-	}
-
 
 	/// <summary>
 	/// Builds/rebuilds the mesh that represents what this light source emits.
@@ -335,8 +319,8 @@ public class LightSource : MonoBehaviour
 
 		Vector3 lightPos3D = MyTransform.position;
 		Vector2 lightPos = new Vector2(lightPos3D.x, lightPos3D.y);
-		
-		float rotCenter = WrapAngle(LightAngle);
+
+		float rotCenter = WrapAngle(LightAngle);// +(Mathf.Deg2Rad * MyTransform.eulerAngles.z);
 		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, (2.0f * Mathf.PI) - 0.0001f);
 		float rotMin = rotCenter - (0.5f * rotRange),
 			  rotMax = rotCenter + (0.5f * rotRange);
@@ -396,8 +380,6 @@ public class LightSource : MonoBehaviour
 		poses.Add(Vector2.zero);
 		colors.Add(Color * Intensity);
 
-		Vector2 lastPos = Vector2.zero;
-
 		float startRot = WrapAngle(rotMin),
 			  endRot = startRot + rotRange;
 
@@ -422,10 +404,9 @@ public class LightSource : MonoBehaviour
 		LightMesh.triangles = indices.ToArray();
 	}
 
-
 	/// <summary>
 	/// Gets all segments that are likely to block this source's light.
-	/// Stores the result in "segments".
+	/// Stores the result in this instance's "segments" list.
 	/// </summary>
 	private void GetSegments(Vector2 lightPos)
 	{
@@ -571,6 +552,7 @@ public class LightSource : MonoBehaviour
 	/// Analyzes the segments in "segments" and shifts/modifies them so that
 	/// any occluded segment parts are ignored -- in other words, after this pass,
 	/// no segments will overlap in any way (though they may often touch ends).
+	/// Assumes "SimplifySegments" has already been run on the segments.
 	/// </summary>
 	private void CombineSegments(Vector2 lightPos)
 	{
@@ -707,7 +689,7 @@ public class LightSource : MonoBehaviour
 						//Otherwise, ignore "second".
 						else
 						{
-							segments.RemoveAt(i);
+							segments.RemoveAt(j);
 							i -= 1;
 							break;
 						}
@@ -718,6 +700,7 @@ public class LightSource : MonoBehaviour
 	}
 	/// <summary>
 	/// Removes any segments in "segments" that do not reach the inside of the given rotation bounds.
+	/// Assumes "CombineSegments" has already been run on the segments.
 	/// </summary>
 	private void FilterSegmentsByAngle(float wrappedMin, float wrappedMax)
 	{
@@ -750,6 +733,7 @@ public class LightSource : MonoBehaviour
 	/// <summary>
 	/// Sorts the segments in "segments" in ascending order by angle.
 	/// Assumes no segments overlap.
+	/// Assumes "FilterSegmentsByAngle" has already been run on the segments.
 	/// </summary>
 	private void SortSegmentsByAngle()
 	{
@@ -783,150 +767,150 @@ public class LightSource : MonoBehaviour
 									   List<int> indices, Vector2 lightPos, float radius, float rotIncrement,
 									   float rotMin, float rotMax)
 	{
-		if (true)
+		float invMaxDist = 1.0f / radius;
+
+		//Create a subset of "rotRanges" that only spans the mesh's rotation range.
+
+		//Find the beginning range.
+		int startIndex;
+		for (startIndex = 0; startIndex < rotRanges.Count; ++startIndex)
+			if (rotRanges[startIndex].A2 > rotMin)
+				break;
+		if (startIndex == rotRanges.Count)
+			startIndex -= 1;
+
+		//Find the ending range.
+		int endIndex;
+		for (endIndex = startIndex; endIndex < rotRanges.Count; ++endIndex)
+			if (rotRanges[endIndex].A2 > rotMax)
+				break;
+		if (endIndex == rotRanges.Count)
+			endIndex -= 1;
+
+
+		//Now assemble the range.
+
+		List<RotRange> newRanges = new List<RotRange>();
+
+		//First clip the beginning.
+		if (rotRanges[startIndex].SegmentOrNull == null)
 		{
-			float invMaxDist = 1.0f / radius;
+			newRanges.Add(new RotRange(rotMin, rotRanges[startIndex].A2));
+		}
+		else
+		{
+			//Get the intersection of the ray pointing from the light source out along the start rot
+			//    and the starting segment.
+			//That intersection is the new beginning of the segment.
+				
+			Segment seg = rotRanges[startIndex].SegmentOrNull;
+			Vector2 dir = GetVector(rotMin);
 
-			//Create a subset of "rotRanges" that only spans the mesh's rotation range.
+			Vector2 intersect = seg.LineIntersection(lightPos, lightPos + dir);
 
-			//Find the beginning range.
-			int startIndex;
-			for (startIndex = 0; startIndex < rotRanges.Count; ++startIndex)
-				if (rotRanges[startIndex].A2 > rotMin)
-					break;
-			if (startIndex == rotRanges.Count)
-				startIndex -= 1;
+			newRanges.Add(new RotRange(new Segment(intersect, seg.P2, rotMin, seg.A2,
+												   Vector2.Distance(intersect, lightPos), seg.D2)));
+		}
 
-			//Find the ending range.
-			int endIndex;
-			for (endIndex = startIndex; endIndex < rotRanges.Count; ++endIndex)
-				if (rotRanges[endIndex].A2 > rotMax)
-					break;
-			if (endIndex == rotRanges.Count)
-				endIndex -= 1;
+		//Then add the middle.
+		for (int i = startIndex + 1; i < endIndex; ++i)
+			newRanges.Add(rotRanges[i]);
 
-
-			//Now assemble the range.
-
-			List<RotRange> newRanges = new List<RotRange>();
-
-			//First clip the beginning.
-			if (rotRanges[startIndex].SegmentOrNull == null)
+		//Then clip the end.
+		if (endIndex == startIndex)
+		{
+			if (rotRanges[endIndex].SegmentOrNull == null)
 			{
-				newRanges.Add(new RotRange(rotMin, rotRanges[startIndex].A2));
+				newRanges[0] = new RotRange(newRanges[0].A1, rotMax);
 			}
 			else
 			{
-				//Get the intersection of the ray pointing from the light source out along the start rot
-				//    and the starting segment.
-				//That intersection is the new beginning of the segment.
-				
-				Segment seg = rotRanges[startIndex].SegmentOrNull;
-				Vector2 dir = GetVector(rotMin);
+				//Get the intersection of the ray pointing from the light source out along the end rot
+				//    and the ending segment.
+				//That intersection is the new end of the segment.
+
+				Segment seg = newRanges[0].SegmentOrNull;
+				Vector2 dir = GetVector(rotMax);
 
 				Vector2 intersect = seg.LineIntersection(lightPos, lightPos + dir);
 
-				newRanges.Add(new RotRange(new Segment(intersect, seg.P2, rotMin, seg.A2,
-													   Vector2.Distance(intersect, lightPos), seg.D2)));
+				newRanges[0] = new RotRange(new Segment(seg.P1, intersect, seg.A1, rotMax, seg.D1,
+														Vector2.Distance(intersect, lightPos)));
 			}
-
-			//Then add the middle.
-			for (int i = startIndex + 1; i < endIndex; ++i)
-				newRanges.Add(rotRanges[i]);
-
-			//Then clip the end.
-			if (endIndex == startIndex)
+		}
+		if (endIndex != startIndex)
+		{
+			if (rotRanges[endIndex].SegmentOrNull == null)
 			{
-				if (rotRanges[endIndex].SegmentOrNull == null)
-				{
-					newRanges[0] = new RotRange(newRanges[0].A1, rotMax);
-				}
-				else
-				{
-					//Get the intersection of the ray pointing from the light source out along the end rot
-					//    and the ending segment.
-					//That intersection is the new end of the segment.
-
-					Segment seg = newRanges[0].SegmentOrNull;
-					Vector2 dir = GetVector(rotMax);
-
-					Vector2 intersect = seg.LineIntersection(lightPos, lightPos + dir);
-
-					newRanges[0] = new RotRange(new Segment(seg.P1, intersect, seg.A1, rotMax, seg.D1,
-															Vector2.Distance(intersect, lightPos)));
-				}
+				newRanges.Add(new RotRange(rotRanges[endIndex].A1, rotMax));
 			}
-			if (endIndex != startIndex)
+			else
 			{
-				if (rotRanges[endIndex].SegmentOrNull == null)
-				{
-					newRanges.Add(new RotRange(rotRanges[endIndex].A1, rotMax));
-				}
-				else
-				{
-					//Get the intersection of the ray pointing from the light source out along the end rot
-					//    and the ending segment.
-					//That intersection is the new end of the segment.
+				//Get the intersection of the ray pointing from the light source out along the end rot
+				//    and the ending segment.
+				//That intersection is the new end of the segment.
 
-					Segment seg = rotRanges[endIndex].SegmentOrNull;
-					Vector2 dir = GetVector(rotMax);
+				Segment seg = rotRanges[endIndex].SegmentOrNull;
+				Vector2 dir = GetVector(rotMax);
 
-					Vector2 intersect = seg.LineIntersection(lightPos, lightPos + dir);
+				Vector2 intersect = seg.LineIntersection(lightPos, lightPos + dir);
 
-					newRanges.Add(new RotRange(new Segment(seg.P1, intersect, seg.A1, rotMax,
-														   seg.D1, Vector2.Distance(intersect, lightPos))));
-				}
+				newRanges.Add(new RotRange(new Segment(seg.P1, intersect, seg.A1, rotMax,
+													   seg.D1, Vector2.Distance(intersect, lightPos))));
 			}
+		}
 
 
-			//Now just build each range individually.
-			for (int i = 0; i < newRanges.Count; ++i)
+		//Now just build each range individually.
+		for (int i = 0; i < newRanges.Count; ++i)
+		{
+			RotRange rng = newRanges[i];
+
+			if (rng.SegmentOrNull == null)
 			{
-				RotRange rng = newRanges[i];
-
-				if (rng.SegmentOrNull == null)
+				Vector2 lastPos = radius * GetVector(rng.A1);
+				for (float rot = rng.A1 + rotIncrement; rot <= rng.A2; rot += rotIncrement)
 				{
-					Vector2 lastPos = radius * GetVector(rng.A1);
-					for (float rot = rng.A1 + rotIncrement; rot <= rng.A2; rot += rotIncrement)
-					{
-						poses.Add(lastPos);
-						colors.Add(Color.clear);
-
-						lastPos = radius * GetVector(rot);
-						poses.Add(lastPos);
-						colors.Add(Color.clear);
-
-						indices.Add(0);
-						indices.Add(poses.Count - 1);
-						indices.Add(poses.Count - 2);
-					}
-
-					//Add the little sliver at the end of the range.
 					poses.Add(lastPos);
 					colors.Add(Color.clear);
 
-					poses.Add(radius * GetVector(rng.A2));
+					lastPos = radius * GetVector(rot);
+					poses.Add(lastPos);
 					colors.Add(Color.clear);
 
 					indices.Add(0);
 					indices.Add(poses.Count - 1);
 					indices.Add(poses.Count - 2);
 				}
-				else
-				{
-					Segment seg = rng.SegmentOrNull;
 
-					poses.Add(seg.P1 - lightPos);
-					colors.Add(colors[0] * (1.0f - (seg.D1 * invMaxDist)));
+				//Add the little sliver at the end of the range.
+				poses.Add(lastPos);
+				colors.Add(Color.clear);
 
-					poses.Add(seg.P2 - lightPos);
-					colors.Add(colors[0] * (1.0f - (seg.D2 * invMaxDist)));
+				poses.Add(radius * GetVector(rng.A2));
+				colors.Add(Color.clear);
 
-					indices.Add(0);
-					indices.Add(poses.Count - 1);
-					indices.Add(poses.Count - 2);
-				}
+				indices.Add(0);
+				indices.Add(poses.Count - 1);
+				indices.Add(poses.Count - 2);
+			}
+			else
+			{
+				Segment seg = rng.SegmentOrNull;
+
+				poses.Add(seg.P1 - lightPos);
+				colors.Add(colors[0] * (1.0f - (seg.D1 * invMaxDist)));
+
+				poses.Add(seg.P2 - lightPos);
+				colors.Add(colors[0] * (1.0f - (seg.D2 * invMaxDist)));
+
+				indices.Add(0);
+				indices.Add(poses.Count - 1);
+				indices.Add(poses.Count - 2);
 			}
 		}
 	}
+
+
+	#endregion
 }
