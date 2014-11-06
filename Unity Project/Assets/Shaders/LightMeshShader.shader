@@ -1,32 +1,47 @@
-﻿Shader "2D Lighting/LightMeshShader" {
-	Properties {
+﻿Shader "2D Lighting/LightMeshShader"
+{
+	Properties
+	{
 	}
-	SubShader {
-		Tags { "RenderType"="Opaque" }
-		
-		CGPROGRAM
-		#pragma surface surf NoLighting
-
-
-		struct Input {
-			float4 color : COLOR;
-		};
-
-		void surf (Input IN, inout SurfaceOutput o) {
-			half4 c = IN.color;
-			o.Albedo = c.rgb;
-			o.Alpha = c.a;
-		}
-
-		fixed4 LightingNoLighting(SurfaceOutput s, fixed3 lightDir, fixed atten)
+	SubShader
+	{
+		Pass
 		{
-			fixed4 c;
-			c.rgb = s.Albedo;
-			c.a = s.Alpha;
-			return c;
-		}
+			Blend One One
 
-		ENDCG
-	} 
+			CGPROGRAM
+
+			#pragma vertex vert
+			#pragma fragment frag
+
+
+			struct vertIn
+			{
+				float4 vertex : POSITION;
+				float4 color : COLOR;
+			};
+
+			struct vertOut
+			{
+				float4 pos : POSITION;
+				float4 col: COLOR;
+			};
+
+			vertOut vert(vertIn v) : POSITION
+			{
+				vertOut o;
+				o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.col = v.color;
+				return o;
+			}
+			fixed4 frag(vertOut i) : COLOR
+			{
+				return i.col;
+			}
+
+
+			ENDCG
+		}
+	}
 	FallBack "Diffuse"
 }
