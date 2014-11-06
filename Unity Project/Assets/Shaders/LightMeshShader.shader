@@ -5,7 +5,7 @@
 		Tags { "RenderType"="Opaque" }
 		
 		CGPROGRAM
-		#pragma surface surf Lambert
+		#pragma surface surf NoLighting
 
 
 		struct Input {
@@ -17,6 +17,15 @@
 			o.Albedo = c.rgb;
 			o.Alpha = c.a;
 		}
+
+		fixed4 LightingNoLighting(SurfaceOutput s, fixed3 lightDir, fixed atten)
+		{
+			fixed4 c;
+			c.rgb = s.Albedo;
+			c.a = s.Alpha;
+			return c;
+		}
+
 		ENDCG
 	} 
 	FallBack "Diffuse"
