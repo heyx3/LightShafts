@@ -98,7 +98,7 @@ public class LightSource : MonoBehaviour
 		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotCenter)));
 	}
 
-	void Update()
+	void LateUpdate()
 	{
 		//Build the light mesh if it needs to be rebuilt.
 		if (Static && LightMesh.vertexCount > 0) return;
@@ -458,6 +458,20 @@ public class LightSource : MonoBehaviour
 
 		for (int i = 0; i < segments.Count; ++i)
 		{
+			//Find any duplicates and remove them.
+			for (int j = i + 1; j < segments.Count; ++j)
+			{
+				const float error = 1.0f;
+				if (((segments[i].P1 - segments[j].P1).sqrMagnitude < error &&
+					 (segments[i].P2 - segments[j].P2).sqrMagnitude < error) ||
+					((segments[i].P2 - segments[j].P1).sqrMagnitude < error &&
+					 (segments[i].P1 - segments[j].P2).sqrMagnitude < error))
+				{
+					segments.RemoveAt(j);
+					j -= 1;
+				}
+			}
+
 			//Do the points need to be swapped?
 			if (segments[i].A1 > segments[i].A2)
 			{
@@ -550,6 +564,7 @@ public class LightSource : MonoBehaviour
 			}
 		}
 	}
+	//public bool stopInfiniteLoop = true; //DEBUG: Used for catching infinite loops.
 	/// <summary>
 	/// Analyzes the segments in "segments" and shifts/modifies them so that
 	/// any occluded segment parts are ignored -- in other words, after this pass,
@@ -558,16 +573,44 @@ public class LightSource : MonoBehaviour
 	/// </summary>
 	private void CombineSegments(Vector2 lightPos)
 	{
+		//DEBUG: used to catch infinite loops.
+		//System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+		//timer.Reset();
+		//timer.Start();
+		
+
+
 		//Ignore segments if they are negligibly small.
-		const float minSegmentSize = 0.1f;
+		const float minSegmentSize = 0.5f;
 
 		//Search each pair of segments for any occlusions.
 		for (int i = 0; i < segments.Count; ++i)
 		{
+			if (segments[i].SegmentLength < minSegmentSize)
+			{
+				segments.RemoveAt(i);
+				i -= 1;
+				continue;
+			}
+
 			Segment first = segments[i];
 
 			for (int j = i; j < segments.Count; ++j)
 			{
+				//DEBUG: see if this has taken waaaay too long.
+				//if (timer.Elapsed.TotalSeconds > 1.0f)
+				//{
+				//	if (stopInfiniteLoop)
+				//	{
+				//		Debug.LogError("Infinte loop!");
+				//		stopInfiniteLoop = false;
+				//		segments.Clear();
+				//		segments.Capacity = 10;
+				//		return;
+				//	}
+				//}
+
+
 				if (j != i)
 				{
 					Segment second = segments[j];
