@@ -86,18 +86,6 @@ public class PathFinder<N> where N : Node
 
 
     /// <summary>
-    /// Recalculates the path from this PathFinder's start to its end.
-    /// Assumes this pather has both a start and an end.
-    /// </summary>
-    /// <param name="maxSearchCost">Any nodes with a higher cost than this value will not be part of the search space.</param>
-    public void FindPath(float maxSearchCost = Single.PositiveInfinity)
-    {
-        CalculatePathTree(maxSearchCost, true, End == null);
-
-        CalculatePath();
-    }
-
-    /// <summary>
     /// Builds a search tree moving outward from Start.
     /// </summary>
     /// <param name="maxSearchCost">The maximum Edge search cost this pathfinder can search from start.
@@ -248,6 +236,37 @@ public class PathFinder<N> where N : Node
     }
 
     /// <summary>
+    /// Gets the End node, or the closest Node to End in the search space if End wasn't found.
+    /// Assumes that End exists.
+    /// </summary>
+    private N GetDest()
+    {
+        if (End != null && PathTree.ContainsKey(End))
+            return End;
+        if (finalDestination != null) return finalDestination;
+
+
+        //End was too far away from Start for the search tree to find, so get an available node closest to End.
+
+        if (PathTree.Count == 0) return null;
+
+        N bestEnd = null;
+        float bestDist = Single.PositiveInfinity;
+        float tempDist;
+
+        foreach (N n in PathTree.Values)
+        {
+            tempDist = MakeEdge(n, End).GetTraversalCost(this);
+            if (tempDist < bestDist)
+            {
+                bestDist = tempDist;
+                bestEnd = n;
+            }
+        }
+
+        return bestEnd;
+    }
+    /// <summary>
     /// Gets the path from Start to End, assuming the path tree has been computed.
     /// </summary>
     /// <returns>A list of the Nodes from Start to End, with the first element being Start
@@ -280,35 +299,17 @@ public class PathFinder<N> where N : Node
         //Reverse the list to put it in the right order.
         CurrentPath.Reverse();
     }
+
+
     /// <summary>
-    /// Gets the End node, or the closest Node to End in the search space if End wasn't found.
-    /// Assumes that End exists.
+    /// Recalculates the path from this PathFinder's start to its end.
+    /// Assumes this pather has both a start and an end.
     /// </summary>
-    private N GetDest()
+    /// <param name="maxSearchCost">Any nodes with a higher cost than this value will not be part of the search space.</param>
+    public void FindPath(float maxSearchCost = Single.PositiveInfinity)
     {
-        if (End != null && PathTree.ContainsKey(End))
-            return End;
-        if (finalDestination != null) return finalDestination;
+        CalculatePathTree(maxSearchCost, true, End == null);
 
-
-        //End was too far away from Start for the search tree to find, so get an available node closest to End.
-
-        if (PathTree.Count == 0) return null;
-
-        N bestEnd = null;
-        float bestDist = Single.PositiveInfinity;
-        float tempDist;
-
-        foreach (N n in PathTree.Values)
-        {
-            tempDist = MakeEdge(n, End).GetTraversalCost(this);
-            if (tempDist < bestDist)
-            {
-                bestDist = tempDist;
-                bestEnd = n;
-            }
-        }
-
-        return bestEnd;
+        CalculatePath();
     }
 }

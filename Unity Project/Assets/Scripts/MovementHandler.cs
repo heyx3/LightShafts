@@ -7,8 +7,7 @@
 [RequireComponent(typeof(Rigidbody2D))]
 public class MovementHandler : MonoBehaviour
 {
-	public float Accel = 100.0f,
-				 MaxSpeed = 500.0f;
+	public float Accel = 100.0f;
 
 	
 	/// <summary>
@@ -28,10 +27,6 @@ public class MovementHandler : MonoBehaviour
 	}
 	void FixedUpdate()
 	{
-		//Keep speed below the max.
-		if (MyRigidbody.velocity.sqrMagnitude > (MaxSpeed * MaxSpeed))
-			MyRigidbody.velocity = MyRigidbody.velocity.normalized * MaxSpeed;
-
 		//Set the acceleration.
 		MyRigidbody.AddForce(MovementInput * Accel);
 	}

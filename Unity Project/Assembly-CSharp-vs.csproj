@@ -56,6 +56,12 @@
      <Compile Include="Assets\Scripts\LightingCam.cs" />
      <Compile Include="Assets\Scripts\Lights\Flashlight.cs" />
      <Compile Include="Assets\Scripts\MovementHandler.cs" />
+     <Compile Include="Assets\Scripts\Pathing\BaseGraphDeclarations.cs" />
+     <Compile Include="Assets\Scripts\Pathing\IndexedPriorityQueue.cs" />
+     <Compile Include="Assets\Scripts\Pathing\NavGraphComponent.cs" />
+     <Compile Include="Assets\Scripts\Pathing\NavGraphDeclarations.cs" />
+     <Compile Include="Assets\Scripts\Pathing\NavNodeComponent.cs" />
+     <Compile Include="Assets\Scripts\Pathing\PathFinder.cs" />
      <Compile Include="Assets\Scripts\PlayerInput.cs" />
      <None Include="Assets\Shaders\LightMeshShader.shader" />
   </ItemGroup>

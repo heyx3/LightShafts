@@ -58,5 +58,5 @@ public interface Graph<N> where N : Node
 	/// <summary>
 	/// Get all edges that start at the given Node, and put them into the given empty list.
 	/// </summary>
-	void GetConnections(N starting, List<Edge<N>> outNodeList);
+	void GetConnections(N starting, List<Edge<N>> outEdgeList);
 }
