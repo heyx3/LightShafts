@@ -2,12 +2,17 @@
 
 
 /// <summary>
-/// Represents an entity that 
+/// Represents an controlled Rigidbody. This component has an acceleration ("Accel"),
+/// a directional input ("MovementInput"),
+/// and a reference to the closest path node to this object ("ClosestNode").
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 public class MovementHandler : MonoBehaviour
 {
-	private static int NavBlockerLayerMask
+	/// <summary>
+	/// Defines the layer used for raycasting.
+	/// </summary>
+	public static int NavBlockerLayerMask
 	{
 		get
 		{
@@ -19,15 +24,14 @@ public class MovementHandler : MonoBehaviour
 	public float Accel = 1000.0f;
 
 	
+	public Transform MyTransform { get; private set; }
+	public Rigidbody2D MyRigidbody { get; private set; }
+
 	/// <summary>
 	/// Set this value to indicate the direction this entity should accelerate towards.
 	/// This vector's magnitude scales the acceleration.
 	/// </summary>
 	public Vector2 MovementInput { get; set; }
-
-	public Transform MyTransform { get; private set; }
-	public Rigidbody2D MyRigidbody { get; private set; }
-
 	/// <summary>
 	/// The closest navigation node to this entity.
 	/// </summary>
@@ -103,7 +107,7 @@ public class MovementHandler : MonoBehaviour
 		}
 	}
 
-	void OnDrawGizmos()
+	void OnDrawGizmosSelected()
 	{
 		if (!Application.isPlaying || ClosestNode == null) return;
 

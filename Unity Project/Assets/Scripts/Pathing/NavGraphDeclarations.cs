@@ -21,7 +21,7 @@ public class NavNode : Node
 
 	public override int GetHashCode()
 	{
-		return Pos.GetHashCode();
+		return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
 	}
 }
 

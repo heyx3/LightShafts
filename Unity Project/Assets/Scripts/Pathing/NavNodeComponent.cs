@@ -20,7 +20,7 @@ public class NavNodeComponent : MonoBehaviour
 	private NavGraph Graph { get { return NavGraphComponent.Graph; } }
 
 
-	//[NonSerialized]
+	[NonSerialized]
 	public List<NavNodeComponent> Connections = new List<NavNodeComponent>();
 
 	public Color GizmoColor = Color.white;
@@ -50,7 +50,8 @@ public class NavNodeComponent : MonoBehaviour
 			Vector2 rayDir = Components[i].node.Pos - myPos;
 			float rayLen = rayDir.magnitude;
 
-			RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen);
+			RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
+													MovementHandler.NavBlockerLayerMask);
 
 			if (hit.collider == null)
 			{
@@ -82,6 +83,11 @@ public class NavNodeComponent : MonoBehaviour
 	}
 
 
+	void OnDrawGizmos()
+	{
+		Gizmos.color = GizmoColor;
+		Gizmos.DrawSphere(transform.position, NodeRadius);
+	}
 	void OnDrawGizmosSelected()
 	{
 		if (!Application.isEditor) return;
@@ -90,8 +96,6 @@ public class NavNodeComponent : MonoBehaviour
 
 		MyTransform = transform;
 		Vector3 startP = MyTransform.position;
-
-		Gizmos.DrawSphere(startP, NodeRadius);
 
 		foreach (NavNodeComponent end in Connections)
 		{

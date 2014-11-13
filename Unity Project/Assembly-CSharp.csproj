@@ -56,6 +56,7 @@
      <Compile Include="Assets\Scripts\LightingCam.cs" />
      <Compile Include="Assets\Scripts\Lights\Flashlight.cs" />
      <Compile Include="Assets\Scripts\MovementHandler.cs" />
+     <Compile Include="Assets\Scripts\PathTesterEntity.cs" />
      <Compile Include="Assets\Scripts\Pathing\BaseGraphDeclarations.cs" />
      <Compile Include="Assets\Scripts\Pathing\IndexedPriorityQueue.cs" />
      <Compile Include="Assets\Scripts\Pathing\NavGraphComponent.cs" />

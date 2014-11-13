@@ -15,6 +15,11 @@ using UnityEngine;
 /// <typeparam name="N">The type representing a node in the graph.</typeparam>
 public class PathFinder<N> where N : Node
 {
+    public bool HasSpecificEnd { get { return End != null; } }
+    public bool HasSeveralEnds { get { return IsEndNodeFunc != null; } }
+    public bool HasAnEnd { get { return HasSpecificEnd || HasSeveralEnds; } }
+
+
     /// <summary>
     /// The most recently-calculated path between the start and end nodes.
     /// </summary>
@@ -33,32 +38,27 @@ public class PathFinder<N> where N : Node
     /// </summary>
     public Dictionary<N, float> CostToMoveToNode = new Dictionary<N, float>();
 
-
     /// <summary>
     /// The graph to search.
     /// </summary>
     public Graph<N> Graph;
 
-
     public N Start;
-
 
     //At most one of these may be set to something other than null.
     public N End = null;
     public Func<N, bool> IsEndNodeFunc = null;
-
-    public bool HasSpecificEnd { get { return End != null; } }
-    public bool HasSeveralEnds { get { return IsEndNodeFunc != null; } }
-    public bool HasAnEnd { get { return HasSpecificEnd || HasSeveralEnds; } }
-
-
 
     /// <summary>
     /// Returns an Edge connecting the two given nodes.
     /// Used to construct edges during A* search.
     /// </summary>
     public Func<N, N, Edge<N>> MakeEdge;
+	
 
+    //Data for A*.
+    private List<N> pathEnds = new List<N>();
+    private N finalDestination = null;
 
 
     /// <summary>
@@ -77,14 +77,6 @@ public class PathFinder<N> where N : Node
     }
 
 
-
-
-    //Data for A*.
-
-    private List<N> pathEnds = new List<N>();
-    private N finalDestination = null;
-
-
     /// <summary>
     /// Builds a search tree moving outward from Start.
     /// </summary>
@@ -94,7 +86,8 @@ public class PathFinder<N> where N : Node
     /// <param name="onlySearchToDestination">If this is true, and the end Node is not null,
     /// this function will stop building the path tree when the destination is found.
     /// Otherwise, it will search the entire graph space within the max search cost.</param>
-    /// <param name="setEnd">If true, sets this PathFinder's "End" field to the last node traversed by this algorithm.</param>
+    /// <param name="setEnd">If true, sets this PathFinder's "End" field to the last node traversed by this algorithm.
+	/// This can be used to see what the pather stopped at in case it never reached its goal.</param>
     public void CalculatePathTree(float maxSearchCost, bool onlySearchToDestination, bool setEnd = false)
     {
         CurrentPath.Clear();
@@ -146,7 +139,6 @@ public class PathFinder<N> where N : Node
             closestSearchCost = getToNodeSearchCost[closestN];
 
 
-
             //Put it into the path.
 
             //If it was already in the path, then a shorter route to it has already been found.
@@ -171,7 +163,6 @@ public class PathFinder<N> where N : Node
             {
                 continue;
             }
-
 
 
             //Now process all the connected nodes.
@@ -299,7 +290,6 @@ public class PathFinder<N> where N : Node
         //Reverse the list to put it in the right order.
         CurrentPath.Reverse();
     }
-
 
     /// <summary>
     /// Recalculates the path from this PathFinder's start to its end.
