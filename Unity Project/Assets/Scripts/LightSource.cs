@@ -564,7 +564,7 @@ public class LightSource : MonoBehaviour
 			}
 		}
 	}
-	//public bool stopInfiniteLoop = true; //DEBUG: Used for catching infinite loops.
+	public bool stopInfiniteLoop = true; //DEBUG: Used for catching infinite loops.
 	/// <summary>
 	/// Analyzes the segments in "segments" and shifts/modifies them so that
 	/// any occluded segment parts are ignored -- in other words, after this pass,
@@ -574,9 +574,9 @@ public class LightSource : MonoBehaviour
 	private void CombineSegments(Vector2 lightPos)
 	{
 		//DEBUG: used to catch infinite loops.
-		//System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-		//timer.Reset();
-		//timer.Start();
+		System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+		timer.Reset();
+		timer.Start();
 		
 
 
@@ -598,17 +598,17 @@ public class LightSource : MonoBehaviour
 			for (int j = i; j < segments.Count; ++j)
 			{
 				//DEBUG: see if this has taken waaaay too long.
-				//if (timer.Elapsed.TotalSeconds > 1.0f)
-				//{
-				//	if (stopInfiniteLoop)
-				//	{
-				//		Debug.LogError("Infinte loop!");
-				//		stopInfiniteLoop = false;
-				//		segments.Clear();
-				//		segments.Capacity = 10;
-				//		return;
-				//	}
-				//}
+				if (timer.Elapsed.TotalSeconds > 1.0f)
+				{
+					if (stopInfiniteLoop)
+					{
+						Debug.LogError("Infinte loop!");
+						stopInfiniteLoop = false;
+						segments.Clear();
+						segments.Capacity = 10;
+						return;
+					}
+				}
 
 
 				if (j != i)

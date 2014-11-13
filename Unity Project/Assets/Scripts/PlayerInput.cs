@@ -7,6 +7,9 @@
 [RequireComponent(typeof(MovementHandler))]
 public class PlayerInput : MonoBehaviour
 {
+	public static PlayerInput Instance { get; private set; }
+
+
 	public MovementHandler MyMovement { get; private set; }
 	public Transform MyTransform { get { return MyMovement.MyTransform; } }
 	public Rigidbody2D MyRigidbody { get { return MyMovement.MyRigidbody; } }
@@ -26,6 +29,9 @@ public class PlayerInput : MonoBehaviour
 		if (Flashlight == null)
 			Debug.LogError("Player's 'Flashlight' field isn't set!");
 
+		if (Instance != null)
+			Debug.LogError("More than one 'PlayerInput' component in the scene!");
+		Instance = this;
 	}
 	void Start()
 	{

@@ -132,7 +132,7 @@ public class PathFinder<N> where N : Node
 
 
         //Keep track of the possible destination Nodes (in case the actual destination is too far away).
-        List<N> possibleDestNodes = new List<N>();
+        //List<N> possibleDestNodes = new List<N>();
         bool goesOn, noBranches;
 
 

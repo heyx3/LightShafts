@@ -52,15 +52,17 @@ public class NavEdge : Edge<NavNode>
 
 /// <summary>
 /// Contains a collection of each node's connections in the graph.
+/// The connecting nodes are stored as the Monobehaviour that represents each node.
+/// This is done to simplify the interface between this nav graph and the Monobehaviour scripts.
 /// </summary>
 public class NavGraph : Graph<NavNode>
 {
-	public Dictionary<NavNode, List<NavNode>> ConnectionsFromNode = new Dictionary<NavNode, List<NavNode>>();
+	public Dictionary<NavNode, List<NavNodeComponent>> ConnectionsFromNode =
+		new Dictionary<NavNode, List<NavNodeComponent>>();
 
 	public void GetConnections(NavNode starting, List<Edge<NavNode>> outEdgeList)
 	{
 		if (ConnectionsFromNode.ContainsKey(starting))
-			foreach (NavNode end in ConnectionsFromNode[starting])
-				outEdgeList.Add(new NavEdge(starting, end));
+			outEdgeList.AddRange(ConnectionsFromNode[starting].ConvertAll(n => (Edge<NavNode>)new NavEdge(starting, n.MyNode)));
 	}
 }
