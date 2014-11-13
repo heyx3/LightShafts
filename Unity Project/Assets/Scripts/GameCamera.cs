@@ -51,6 +51,9 @@ public class GameCamera : MonoBehaviour
 	}
 
 
+	public bool RotateWithPlayer = false;
+
+
 	void Awake()
 	{
 		MyCam = camera;
@@ -93,6 +96,7 @@ public class GameCamera : MonoBehaviour
 	}
 	void LateUpdate()
 	{
-		MyTransform.eulerAngles = new Vector3();
+		if (!RotateWithPlayer)
+			MyTransform.eulerAngles = new Vector3();
 	}
 }

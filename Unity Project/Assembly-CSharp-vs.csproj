@@ -54,6 +54,7 @@
      <Compile Include="Assets\Scripts\LightRenderQuad.cs" />
      <Compile Include="Assets\Scripts\LightSource.cs" />
      <Compile Include="Assets\Scripts\LightingCam.cs" />
+     <Compile Include="Assets\Scripts\Lights\AlertLights.cs" />
      <Compile Include="Assets\Scripts\Lights\Flashlight.cs" />
      <Compile Include="Assets\Scripts\MovementHandler.cs" />
      <Compile Include="Assets\Scripts\PathTesterEntity.cs" />

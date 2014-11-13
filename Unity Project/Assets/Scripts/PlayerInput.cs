@@ -49,8 +49,15 @@ public class PlayerInput : MonoBehaviour
 			input.x -= 1.0f;
 		if (Input.GetKey(KeyCode.D))
 			input.x += 1.0f;
-		MyMovement.MovementInput = input;
 
+		if (GameCamera.Instance.RotateWithPlayer)
+		{
+			//Quaternion camRot = Quaternion.AngleAxis (
+		}
+		else
+		{
+			MyMovement.MovementInput = input;
+		}
 
 		Vector2 dir = GameCamera.Instance.WorldMousePos - (Vector2)MyTransform.position;
 		float ang = Mathf.Atan2(dir.y, dir.x);

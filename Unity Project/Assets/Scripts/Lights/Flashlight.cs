@@ -24,21 +24,7 @@ public class Flashlight : MonoBehaviour
 	}
 	void Update()
 	{
-		//Sanity check.
-		if (MyTransform.parent != null)
-			Debug.LogError("The player's flashlight can't be parented to anything!");
-
 		//Move to player's position.
 		MyTransform.position = Player.MyTransform.position;
-	}
-	void LateUpdate()
-	{
-		//Get delta rotation and incorporate that into the light source angle.
-
-		float rotZ = MyTransform.localEulerAngles.z;
-		MyTransform.localEulerAngles = new Vector3();
-
-		rotZ = AngleCalculations.TransformEulerAngleToRadian(rotZ);
-		MyLightSource.LightAngle += rotZ;
 	}
 }

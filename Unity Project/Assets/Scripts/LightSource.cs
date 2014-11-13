@@ -75,6 +75,11 @@ public class LightSource : MonoBehaviour
 			mf.mesh = new Mesh();
 		}
 		LightMesh = mf.mesh;
+
+
+		//Sanity check.
+		if (MyTransform.parent != null)
+			Debug.LogError("Light sources can't be parented to anything!");
 	}
 	void OnDestroy()
 	{
@@ -102,6 +107,13 @@ public class LightSource : MonoBehaviour
 	{
 		//Build the light mesh if it needs to be rebuilt.
 		if (Static && LightMesh.vertexCount > 0) return;
+		
+		//Incorporate delta rotation into the light angle.
+		float rotZ = MyTransform.localEulerAngles.z;
+		MyTransform.localEulerAngles = new Vector3();
+		
+		rotZ = AngleCalculations.TransformEulerAngleToRadian(rotZ);
+		LightAngle += rotZ;
 
 		RebuildMesh();
 	}
