@@ -52,7 +52,9 @@ public class PlayerInput : MonoBehaviour
 
 		if (GameCamera.Instance.RotateWithPlayer)
 		{
-			//Quaternion camRot = Quaternion.AngleAxis (
+			Quaternion camRot = Quaternion.AngleAxis(GameCamera.Instance.MyTransform.eulerAngles.z,
+													 new Vector3(0.0f, 0.0f, 1.0f));
+			MyMovement.MovementInput = ((Vector2)(camRot * (Vector3)input)).normalized;
 		}
 		else
 		{

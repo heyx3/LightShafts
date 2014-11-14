@@ -51,7 +51,7 @@ public class NavNodeComponent : MonoBehaviour
 			float rayLen = rayDir.magnitude;
 
 			RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
-													MovementHandler.NavBlockerLayerMask);
+													MovementHandler.NavBlockerOnlyLayerMask);
 
 			if (hit.collider == null)
 			{

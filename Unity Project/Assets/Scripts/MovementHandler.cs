@@ -7,16 +7,37 @@
 /// and a reference to the closest path node to this object ("ClosestNode").
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(CircleCollider2D))]
 public class MovementHandler : MonoBehaviour
 {
 	/// <summary>
-	/// Defines the layer used for raycasting.
+	/// Defines the default layer used for raycasting -- only navigation blockers.
 	/// </summary>
-	public static int NavBlockerLayerMask
+	public static int NavBlockerOnlyLayerMask
 	{
 		get
 		{
 			return 1 << LayerMask.NameToLayer("Navigation Blocker");
+		}
+	}
+	/// <summary>
+	/// Defines another possible layer used for raycasting -- only characters.
+	/// </summary>
+	public static int CharacterOnlyLayerMask
+	{
+		get
+		{
+			return 1 << LayerMask.NameToLayer("Character");
+		}
+	}
+	/// <summary>
+	/// Defines another possible layer used for raycasting -- navigation blockers AND characters.
+	/// </summary>
+	public static int NavBlockerAndCharacterLayerMask
+	{
+		get
+		{
+			return NavBlockerOnlyLayerMask | CharacterOnlyLayerMask;
 		}
 	}
 
@@ -26,6 +47,7 @@ public class MovementHandler : MonoBehaviour
 	
 	public Transform MyTransform { get; private set; }
 	public Rigidbody2D MyRigidbody { get; private set; }
+	public CircleCollider2D MyCollider { get; private set; }
 
 	/// <summary>
 	/// Set this value to indicate the direction this entity should accelerate towards.
@@ -41,18 +63,26 @@ public class MovementHandler : MonoBehaviour
 	/// <summary>
 	/// Returns the result of casting out a collision ray along the given direction,
 	/// starting from this entity, over the given distance.
+	/// If the given layer mask is 0, "NavBlockerOnlyLayerMask" is used.
 	/// </summary>
-	public RaycastHit2D CastRay(Vector2 dir, float distance)
+	public RaycastHit2D CastRay(Vector2 dir, float distance, int layerMask = 0)
 	{
-		return Physics2D.Raycast((Vector2)MyTransform.position, dir, distance, NavBlockerLayerMask);
+		//Start the ray juuuuuust in front of this character so that the ray doesn't hit it.
+		Vector2 rayStart = (Vector2)MyTransform.position + (dir * MyCollider.radius * 1.001f);
+		return Physics2D.Raycast(rayStart, dir, distance,
+								 (layerMask == 0 ? NavBlockerOnlyLayerMask : layerMask));
 	}
 	/// <summary>
 	/// Returns the result of casting out a collision ray along the given direction,
 	/// starting from this entity.
+	/// If the given layer mask is 0, "NavBlockerOnlyLayerMask" is used.
 	/// </summary>
-	public RaycastHit2D CastRay(Vector2 dir)
+	public RaycastHit2D CastRay(Vector2 dir, int layerMask = 0)
 	{
-		return Physics2D.Raycast((Vector2)MyTransform.position, dir, 9999999.0f, NavBlockerLayerMask);
+		//Start the ray juuuuuust in front of this character so that the ray doesn't hit it.
+		Vector2 rayStart = (Vector2)MyTransform.position + (dir * MyCollider.radius * 1.001f);
+		return Physics2D.Raycast(rayStart, dir, 9999999.0f,
+								 (layerMask == 0 ? NavBlockerOnlyLayerMask : layerMask));
 	}
 
 
@@ -60,6 +90,7 @@ public class MovementHandler : MonoBehaviour
 	{
 		MyTransform = transform;
 		MyRigidbody = rigidbody2D;
+		MyCollider = GetComponent<CircleCollider2D>();
 	}
 	void FixedUpdate()
 	{
