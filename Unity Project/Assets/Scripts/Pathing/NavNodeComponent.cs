@@ -20,8 +20,10 @@ public class NavNodeComponent : MonoBehaviour
 	private NavGraph Graph { get { return NavGraphComponent.Graph; } }
 
 
-	[NonSerialized]
 	public List<NavNodeComponent> Connections = new List<NavNodeComponent>();
+	public bool FindConnectionsAtStartup = true;
+
+	public float ConnectionSearchRadius = 1000.0f;
 
 	public Color GizmoColor = Color.white;
 	public float NodeRadius = 10.0f;
@@ -41,22 +43,32 @@ public class NavNodeComponent : MonoBehaviour
 		Vector2 myPos = (Vector2)MyTransform.position;
 		float playerRadius = PlayerInput.Instance.GetComponent<CircleCollider2D>().bounds.extents.x;
 
-		//Get any connections that haven't been found yet.
-		for (int i = 0; i < Components.Count; ++i)
+		if (FindConnectionsAtStartup)
 		{
-			if (Components[i] == this || Connections.Contains(Components[i]))
-				continue;
-
-			Vector2 rayDir = Components[i].node.Pos - myPos;
-			float rayLen = rayDir.magnitude;
-
-			RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
-													MovementHandler.NavBlockerOnlyLayerMask);
-
-			if (hit.collider == null)
+			//Get any connections that haven't been found yet.
+			for (int i = 0; i < Components.Count; ++i)
 			{
-				Connections.Add(Components[i]);
-				Components[i].Connections.Add(this);
+				if (Components[i] == this || Connections.Contains(Components[i]))
+					continue;
+
+				Vector2 rayDir = Components[i].node.Pos - myPos;
+				float rayLenSqr = rayDir.sqrMagnitude;
+
+				if (rayLenSqr > (ConnectionSearchRadius * ConnectionSearchRadius))
+					continue;
+
+				float rayLen = Mathf.Sqrt(rayLenSqr);
+				RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
+														MovementHandler.NavBlockerOnlyLayerMask);
+
+				if (hit.collider == null)
+				{
+					Connections.Add(Components[i]);
+					if (Components[i].FindConnectionsAtStartup && !Components[i].Connections.Contains(this))
+					{
+						Components[i].Connections.Add(this);
+					}
+				}
 			}
 		}
 
@@ -93,6 +105,11 @@ public class NavNodeComponent : MonoBehaviour
 		if (!Application.isEditor) return;
 
 		Gizmos.color = GizmoColor;
+
+		if (FindConnectionsAtStartup && !Application.isPlaying)
+		{
+			Gizmos.DrawWireSphere(transform.position, ConnectionSearchRadius);
+		}
 
 		MyTransform = transform;
 		Vector3 startP = MyTransform.position;

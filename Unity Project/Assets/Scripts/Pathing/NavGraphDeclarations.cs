@@ -36,8 +36,8 @@ public class NavEdge : Edge<NavNode>
 	{
 		if (pather.HasAnEnd)
 		{
-			return Vector2.SqrMagnitude(End.Pos - pather.End.Pos) +
-				   Vector2.SqrMagnitude(Start.Pos - End.Pos);
+			return Vector2.SqrMagnitude(Start.Pos - End.Pos) +
+				   Vector2.SqrMagnitude(End.Pos - pather.End.Pos);
 		}
 		else
 		{

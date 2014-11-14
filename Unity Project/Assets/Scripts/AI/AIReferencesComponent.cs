@@ -9,6 +9,7 @@ public class AIReferencesComponent : MonoBehaviour
 {
 	public CheckTargetVisibility TargetVisibility { get; private set; }
 	public MovementHandler MyMovement { get; private set; }
+	public AIPathFollower MyPathFollower { get; private set; }
 
 	public Transform MyTransform { get; private set; }
 	public Rigidbody2D MyRigidbody { get; private set; }
@@ -18,6 +19,7 @@ public class AIReferencesComponent : MonoBehaviour
 	{
 		TargetVisibility = GetComponent<CheckTargetVisibility>();
 		MyMovement = GetComponent<MovementHandler>();
+		MyPathFollower = GetComponent<AIPathFollower>();
 
 		MyTransform = transform;
 		MyRigidbody = rigidbody2D;

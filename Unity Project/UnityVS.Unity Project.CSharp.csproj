@@ -51,8 +51,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\AI\AIBaseComponent.cs" />
+    <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
+    <Compile Include="Assets\Scripts\AI\AIPathFollower.cs" />
     <Compile Include="Assets\Scripts\AI\AIReferencesComponent.cs" />
     <Compile Include="Assets\Scripts\AI\CheckTargetVisibility.cs" />
+    <Compile Include="Assets\Scripts\AI\States\AIState_WaitForVisibleTarget.cs" />
     <Compile Include="Assets\Scripts\AngleCalculations.cs" />
     <Compile Include="Assets\Scripts\BoxWall.cs" />
     <Compile Include="Assets\Scripts\FinalCam.cs" />

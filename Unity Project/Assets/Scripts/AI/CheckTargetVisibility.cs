@@ -11,17 +11,23 @@ public class CheckTargetVisibility : AIBaseComponent
 				 IntervalVariation = 0.2f;
 	public float MaxVisibleDist = 1000.0f;
 
-	public Transform Target;
+	public MovementHandler Target;
+
+	public float DEBUG = 0.0f;
 
 
 	/// <summary>
-	/// Whether the target is currently visible.
+	/// Whether the target is currently visible to this entity.
 	/// </summary>
 	public bool IsVisible { get; private set; }
 	/// <summary>
 	/// The most recent position that the target was seen at.
 	/// </summary>
 	public Vector2 LastSeenPos { get; private set; }
+	/// <summary>
+	/// The path node closest to the most recent position the target was seen at.
+	/// </summary>
+	public NavNode LastSeenClosestNode { get; private set; }
 	/// <summary>
 	/// The amount of time since the target was last seen.
 	/// </summary>
@@ -30,19 +36,27 @@ public class CheckTargetVisibility : AIBaseComponent
 
 	void Start()
 	{
-		LastSeenPos = Target.position;
+		TimeSinceVisible = 999999.0f;
+		IsVisible = false;
+
+		LastSeenPos = Target.MyTransform.position;
 		StartCoroutine(CheckVisibleCoroutine());
 	}
 	void Update()
 	{
 		if (IsVisible)
 		{
-			LastSeenPos = Target.position;
+			TimeSinceVisible = 0.0f;
+
+			LastSeenPos = Target.MyTransform.position;
+			LastSeenClosestNode = Target.ClosestNode.MyNode;
 		}
 		else
 		{
 			TimeSinceVisible += Time.deltaTime;
 		}
+
+		DEBUG = TimeSinceVisible;
 	}
 
 	void OnDrawGizmos()
@@ -54,7 +68,7 @@ public class CheckTargetVisibility : AIBaseComponent
 
 	private System.Collections.IEnumerator CheckVisibleCoroutine()
 	{
-		RaycastHit2D hit = MyMovement.CastRay(((Vector2)Target.position -
+		RaycastHit2D hit = MyMovement.CastRay(((Vector2)Target.MyTransform.position -
 											   (Vector2)MyTransform.position).normalized,
 											  MaxVisibleDist,
 											  MovementHandler.NavBlockerAndCharacterLayerMask);

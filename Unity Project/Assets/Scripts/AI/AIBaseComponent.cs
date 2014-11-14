@@ -9,7 +9,8 @@
 public class AIBaseComponent : MonoBehaviour
 {
 	public MovementHandler MyMovement { get { return refs.MyMovement; } }
-	public CheckTargetVisibility PlayerVisibility { get { return refs.TargetVisibility; } }
+	public AIPathFollower MyPathFollower { get { return refs.MyPathFollower; } }
+	public CheckTargetVisibility TargetVisibility { get { return refs.TargetVisibility; } }
 
 	public Transform MyTransform { get { return refs.MyTransform; } }
 	public PlayerInput Player { get { return PlayerInput.Instance; } }
@@ -18,7 +19,7 @@ public class AIBaseComponent : MonoBehaviour
 	private AIReferencesComponent refs;
 
 
-	private void Awake()
+	void Awake()
 	{
 		refs = GetComponent<AIReferencesComponent>();
 		OnAwake();

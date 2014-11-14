@@ -51,7 +51,8 @@ public class MovementHandler : MonoBehaviour
 
 	/// <summary>
 	/// Set this value to indicate the direction this entity should accelerate towards.
-	/// This vector's magnitude scales the acceleration.
+	/// Clamps the magnitude to the range {0, 1}. This magnitude represents the acceleration scale.
+	/// Resets to {0, 0} after it is applied.
 	/// </summary>
 	public Vector2 MovementInput { get; set; }
 	/// <summary>
@@ -95,7 +96,8 @@ public class MovementHandler : MonoBehaviour
 	void FixedUpdate()
 	{
 		//Set the acceleration.
-		MyRigidbody.AddForce(MovementInput * Accel);
+		MyRigidbody.AddForce(Vector2.ClampMagnitude(MovementInput, 1.0f) * Accel);
+		MovementInput = Vector2.zero;
 	}
 	void LateUpdate()
 	{
@@ -136,13 +138,5 @@ public class MovementHandler : MonoBehaviour
 			//Set the closest node.
 			ClosestNode = NavNodeComponent.Components[closestElement];
 		}
-	}
-
-	void OnDrawGizmosSelected()
-	{
-		if (!Application.isPlaying || ClosestNode == null) return;
-
-		Gizmos.color = Color.white;
-		Gizmos.DrawLine(transform.position, ClosestNode.transform.position);
 	}
 }
