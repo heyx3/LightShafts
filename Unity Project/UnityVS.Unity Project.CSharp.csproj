@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\AI\AIBaseComponent.cs" />
+    <Compile Include="Assets\Scripts\HealthComponent.cs" />
     <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
     <Compile Include="Assets\Scripts\AI\AIPathFollower.cs" />
     <Compile Include="Assets\Scripts\AI\AIReferencesComponent.cs" />
@@ -74,7 +75,11 @@
     <Compile Include="Assets\Scripts\Pathing\NavGraphDeclarations.cs" />
     <Compile Include="Assets\Scripts\Pathing\NavNodeComponent.cs" />
     <Compile Include="Assets\Scripts\Pathing\PathFinder.cs" />
+    <Compile Include="Assets\Scripts\PlayerAnimation.cs" />
     <Compile Include="Assets\Scripts\PlayerInput.cs" />
+    <Compile Include="Assets\Scripts\Projectiles\SingleAmmo.cs" />
+    <Compile Include="Assets\Scripts\Projectiles\Projectile.cs" />
+    <Compile Include="Assets\Scripts\Projectiles\Shootable Objects\BaseShootableObject.cs" />
     <None Include="Assets\Shaders\LightMeshShader.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\SyntaxTree\UnityVS\2013\UnityVS.CSharp.targets" />
