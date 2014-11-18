@@ -46,6 +46,26 @@ public class LightSource : MonoBehaviour
 	private static Vector3 ToV3(Vector2 v) { return new Vector3(v.x, v.y, 0.0f); }
 
 
+	/// <summary>
+	/// The different types of light this source can emit.
+	/// </summary>
+	public enum LightTypes
+	{
+		/// <summary>
+		/// Light that updates every frame.
+		/// </summary>
+		Dynamic,
+		/// <summary>
+		/// Light that only updates when told to via "RebuildMesh".
+		/// </summary>
+		Manual,
+		/// <summary>
+		/// The light does not need to update because it can't be occluded by anything.
+		/// </summary>
+		NoBlockers,
+	}
+	public LightTypes LightType = LightTypes.Dynamic;
+
 	public float Radius = 50.0f;
 	public float RotationRangeRadians = Mathf.PI * 0.25f;
 	public float LightAngle = 0.0f;
@@ -54,7 +74,6 @@ public class LightSource : MonoBehaviour
 	public Color Color = Color.white;
 
 	public float MeshRotationIncrementRadians = 0.1f;
-	public bool Static = false;
 
 
 	public Transform MyTransform { get; private set; }
@@ -106,7 +125,8 @@ public class LightSource : MonoBehaviour
 	void LateUpdate()
 	{
 		//Build the light mesh if it needs to be rebuilt.
-		if (Static && LightMesh.vertexCount > 0) return;
+		if (LightType != LightTypes.Dynamic && LightMesh.vertexCount > 0)
+			return;
 		
 		//Incorporate delta rotation into the light angle.
 		float rotZ = MyTransform.localEulerAngles.z;
@@ -425,6 +445,10 @@ public class LightSource : MonoBehaviour
 	private void GetSegments(Vector2 lightPos)
 	{
 		segments.Clear();
+
+		if (LightType == LightTypes.NoBlockers)
+			return;
+
 		for (int i = 0; i < BoxWall.Walls.Count; ++i)
 		{
 			Bounds bounds3D = BoxWall.Walls[i].Box.bounds;

@@ -176,6 +176,23 @@ public class PlayerInput : MonoBehaviour
 		MyTransform.eulerAngles = new Vector3(0.0f, 0.0f, angD);
 		Flashlight.MyTransform.eulerAngles += new Vector3(0.0f, 0.0f, angD - previousEulerZ);
 		previousEulerZ = angD;
+
+
+		//Enable/disable the flashlight based on input.
+		if (Input.GetMouseButton(1))
+		{
+			if (!Flashlight.gameObject.activeSelf)
+			{
+				Flashlight.gameObject.SetActive(true);
+			}
+		}
+		else
+		{
+			if (Flashlight.gameObject.activeSelf)
+			{
+				Flashlight.gameObject.SetActive(false);
+			}
+		}
 	}
 
 

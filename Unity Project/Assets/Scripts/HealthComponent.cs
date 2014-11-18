@@ -14,7 +14,10 @@ public class HealthComponent : BaseShootableObject
 	public override void OnShot(Projectile projectile, Collision2D collsion)
 	{
 		Health -= projectile.Damage;
+	}
 
+	void Update()
+	{
 		if (Health <= 0.0f)
 		{
 			ActivateWhenKilled.enabled = true;

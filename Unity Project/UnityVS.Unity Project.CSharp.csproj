@@ -7,16 +7,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{5AAC8DBB-04FC-1399-ECF9-1DE1930E2505}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>
-    </RootNamespace>
+    <RootNamespace></RootNamespace>
     <AssemblyName>Assembly-CSharp</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{E097FAD1-6243-4DAD-9C02-E9B9EFC3FFC1};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Unity Subset v3.5</TargetFrameworkProfile>
-    <CompilerResponseFile>
-    </CompilerResponseFile>
+    <CompilerResponseFile></CompilerResponseFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -51,21 +49,22 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\AI\AIBaseComponent.cs" />
-    <Compile Include="Assets\Scripts\HealthComponent.cs" />
-    <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
     <Compile Include="Assets\Scripts\AI\AIPathFollower.cs" />
     <Compile Include="Assets\Scripts\AI\AIReferencesComponent.cs" />
     <Compile Include="Assets\Scripts\AI\CheckTargetVisibility.cs" />
+    <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
     <Compile Include="Assets\Scripts\AI\States\AIState_WaitForVisibleTarget.cs" />
     <Compile Include="Assets\Scripts\AngleCalculations.cs" />
     <Compile Include="Assets\Scripts\BoxWall.cs" />
     <Compile Include="Assets\Scripts\FinalCam.cs" />
     <Compile Include="Assets\Scripts\GameCamera.cs" />
     <Compile Include="Assets\Scripts\GameRenderQuad.cs" />
+    <Compile Include="Assets\Scripts\HealthComponent.cs" />
     <Compile Include="Assets\Scripts\LightRenderQuad.cs" />
     <Compile Include="Assets\Scripts\LightSource.cs" />
     <Compile Include="Assets\Scripts\LightingCam.cs" />
     <Compile Include="Assets\Scripts\Lights\AlertLights.cs" />
+    <Compile Include="Assets\Scripts\Lights\AuraLight.cs" />
     <Compile Include="Assets\Scripts\Lights\Flashlight.cs" />
     <Compile Include="Assets\Scripts\MovementHandler.cs" />
     <Compile Include="Assets\Scripts\PathTesterEntity.cs" />
@@ -77,9 +76,9 @@
     <Compile Include="Assets\Scripts\Pathing\PathFinder.cs" />
     <Compile Include="Assets\Scripts\PlayerAnimation.cs" />
     <Compile Include="Assets\Scripts\PlayerInput.cs" />
-    <Compile Include="Assets\Scripts\Projectiles\SingleAmmo.cs" />
     <Compile Include="Assets\Scripts\Projectiles\Projectile.cs" />
     <Compile Include="Assets\Scripts\Projectiles\Shootable Objects\BaseShootableObject.cs" />
+    <Compile Include="Assets\Scripts\Projectiles\SingleAmmo.cs" />
     <None Include="Assets\Shaders\LightMeshShader.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\SyntaxTree\UnityVS\2013\UnityVS.CSharp.targets" />
