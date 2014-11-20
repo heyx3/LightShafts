@@ -53,11 +53,14 @@
      <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
      <Compile Include="Assets\Scripts\AI\States\AIState_WaitForVisibleTarget.cs" />
      <Compile Include="Assets\Scripts\AngleCalculations.cs" />
-     <Compile Include="Assets\Scripts\BoxWall.cs" />
      <Compile Include="Assets\Scripts\FinalCam.cs" />
      <Compile Include="Assets\Scripts\GameCamera.cs" />
      <Compile Include="Assets\Scripts\GameRenderQuad.cs" />
      <Compile Include="Assets\Scripts\HealthComponent.cs" />
+     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerAABB.cs" />
+     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerBase.cs" />
+     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerGrid.cs" />
+     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerPolygon.cs" />
      <Compile Include="Assets\Scripts\LightRenderQuad.cs" />
      <Compile Include="Assets\Scripts\LightSource.cs" />
      <Compile Include="Assets\Scripts\LightingCam.cs" />

@@ -46,108 +46,13 @@ public class LightSource : MonoBehaviour
 	private static Vector3 ToV3(Vector2 v) { return new Vector3(v.x, v.y, 0.0f); }
 
 
-	/// <summary>
-	/// The different types of light this source can emit.
-	/// </summary>
-	public enum LightTypes
-	{
-		/// <summary>
-		/// Light that updates every frame.
-		/// </summary>
-		Dynamic,
-		/// <summary>
-		/// Light that only updates when told to via "RebuildMesh".
-		/// </summary>
-		Manual,
-		/// <summary>
-		/// The light does not need to update because it can't be occluded by anything.
-		/// </summary>
-		NoBlockers,
-	}
-	public LightTypes LightType = LightTypes.Dynamic;
-
-	public float Radius = 50.0f;
-	public float RotationRangeRadians = Mathf.PI * 0.25f;
-	public float LightAngle = 0.0f;
-	public float Intensity = 1.0f;
-
-	public Color Color = Color.white;
-
-	public float MeshRotationIncrementRadians = 0.1f;
-
-
-	public Transform MyTransform { get; private set; }
-	public Mesh LightMesh { get; private set; }
-
 	
-	private List<Segment> segments = new List<Segment>();
-
-
-	void Awake()
-	{
-		Sources.Add(this);
-		MyTransform = transform;
-
-		MeshFilter mf = GetComponent<MeshFilter>();
-		if (mf.mesh == null)
-		{
-			mf.mesh = new Mesh();
-		}
-		LightMesh = mf.mesh;
-
-
-		//Sanity check.
-		if (MyTransform.parent != null)
-			Debug.LogError("Light sources can't be parented to anything!");
-	}
-	void OnDestroy()
-	{
-		Sources.Remove(this);
-	}
-
-	void OnDrawGizmos()
-	{
-		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, (2.0f * Mathf.PI) - 0.0001f),
-			  rotCenter = LightAngle + (Mathf.Deg2Rad * transform.eulerAngles.z);
-		float rotMin = rotCenter - (0.5f * rotRange),
-			  rotMax = rotCenter + (0.5f * rotRange);
-
-		Vector3 pos = transform.position;
-
-		Gizmos.color = Color * Intensity;
-
-		//Draw the beginning/middle/end segments of the light cone.
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMin)));
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMax)));
-		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotCenter)));
-	}
-
-	void LateUpdate()
-	{
-		//Build the light mesh if it needs to be rebuilt.
-		if (LightType != LightTypes.Dynamic && LightMesh.vertexCount > 0)
-			return;
-		
-		//Incorporate delta rotation into the light angle.
-		float rotZ = MyTransform.localEulerAngles.z;
-		MyTransform.localEulerAngles = new Vector3();
-		
-		rotZ = AngleCalculations.TransformEulerAngleToRadian(rotZ);
-		LightAngle += rotZ;
-
-		RebuildMesh();
-	}
-
-
-	#region Mesh-building
-
-
 	/// <summary>
 	/// A line segment. Defined as two points, plus
 	/// their distances to the light source and their relative angle from the light source.
 	/// Immutable except for the "SwapPoints" function.
 	/// </summary>
-	private class Segment
+	public class Segment
 	{
 		public static Vector2 LineIntersection(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2)
 		{
@@ -251,10 +156,9 @@ public class LightSource : MonoBehaviour
 			//Do some linear algebra.
 			float denominator = 1.0f / ((x1_x2 * otherLin.y1_y2) -
 										(y1_y2 * otherLin.x1_x2));
-			return new Vector2((float)((x1y2_y1x2 * otherLin.x1_x2) - (x1_x2 * otherLin.x1y2_y1x2)) *
-							       denominator,
-							   (float)((x1y2_y1x2 * otherLin.y1_y2) - (y1_y2 * otherLin.x1y2_y1x2)) *
-								   denominator);
+			return new Vector2((float)((x1y2_y1x2 * otherLin.x1_x2) - (x1_x2 * otherLin.x1y2_y1x2)),
+							   (float)((x1y2_y1x2 * otherLin.y1_y2) - (y1_y2 * otherLin.x1y2_y1x2))) *
+					   denominator;
 		}
 		/// <summary>
 		/// Gets the intersections between the given circle and the line this segment is a part of.
@@ -288,12 +192,13 @@ public class LightSource : MonoBehaviour
 				   numeratorY1 = -x1y2_y1x2 * P1ToP2.x,
 				   denominator = 1.0f / (SegmentLength * SegmentLength);
 			if (discriminant == 0.0f)
+			{
 				return new Vector2[1]
 				{
 					new Vector2((float)(numeratorX1 * denominator),
 								(float)(numeratorY1 * denominator)),
 				};
-
+			}
 
 			double sqrtDiscriminant = System.Math.Sqrt(discriminant),
 				   numeratorX2 = Sign(P1ToP2.y) * P1ToP2.x * sqrtDiscriminant,
@@ -312,6 +217,104 @@ public class LightSource : MonoBehaviour
 			return "[ " + P1.ToString() + " -- " + P2.ToString() + " ]";
 		}
 	}
+
+
+
+	/// <summary>
+	/// The different types of light this source can emit.
+	/// </summary>
+	public enum LightTypes
+	{
+		/// <summary>
+		/// Light that updates every frame.
+		/// </summary>
+		Dynamic,
+		/// <summary>
+		/// Light that only updates when told to via "RebuildMesh".
+		/// </summary>
+		Manual,
+		/// <summary>
+		/// The light does not need to update because it can't be occluded by anything.
+		/// </summary>
+		NoBlockers,
+	}
+	public LightTypes LightType = LightTypes.Dynamic;
+
+	public float Radius = 50.0f;
+	public float RotationRangeRadians = Mathf.PI * 0.25f;
+	public float LightAngle = 0.0f;
+	public float Intensity = 1.0f;
+
+	public Color Color = Color.white;
+
+	public float MeshRotationIncrementRadians = 0.1f;
+
+
+	public Transform MyTransform { get; private set; }
+	public Mesh LightMesh { get; private set; }
+
+	
+	private List<Segment> segments = new List<Segment>();
+
+
+	void Awake()
+	{
+		Sources.Add(this);
+		MyTransform = transform;
+
+		MeshFilter mf = GetComponent<MeshFilter>();
+		if (mf.mesh == null)
+		{
+			mf.mesh = new Mesh();
+		}
+		LightMesh = mf.mesh;
+
+
+		//Sanity check.
+		if (MyTransform.parent != null)
+			Debug.LogError("Light sources can't be parented to anything!");
+	}
+	void OnDestroy()
+	{
+		Sources.Remove(this);
+	}
+
+	void OnDrawGizmos()
+	{
+		float rotRange = Mathf.Clamp(RotationRangeRadians, 0.0001f, (2.0f * Mathf.PI) - 0.0001f),
+			  rotCenter = LightAngle + (Mathf.Deg2Rad * transform.eulerAngles.z);
+		float rotMin = rotCenter - (0.5f * rotRange),
+			  rotMax = rotCenter + (0.5f * rotRange);
+
+		Vector3 pos = transform.position;
+
+		Gizmos.color = Color * Intensity;
+
+		//Draw the beginning/middle/end segments of the light cone.
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMin)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotMax)));
+		Gizmos.DrawLine(pos, pos + ToV3(Radius * GetVector(rotCenter)));
+	}
+
+	void LateUpdate()
+	{
+		//Build the light mesh if it needs to be rebuilt.
+		if (LightType != LightTypes.Dynamic && LightMesh.vertexCount > 0)
+			return;
+		
+		//Incorporate delta rotation into the light angle.
+		float rotZ = MyTransform.localEulerAngles.z;
+		MyTransform.localEulerAngles = new Vector3();
+		
+		rotZ = AngleCalculations.TransformEulerAngleToRadian(rotZ);
+		LightAngle += rotZ;
+
+		RebuildMesh();
+	}
+
+
+	#region Mesh-building
+
 
 	/// <summary>
 	/// Represents a rotation range that is either empty or full with a segment.
@@ -359,7 +362,7 @@ public class LightSource : MonoBehaviour
 
 
 		//First, build the list of all line segments that might block the light.
-		GetSegments(lightPos);
+		GetSegments(lightPos, Radius);
 
 		//Next, simplify each individual segment.
 		SimplifySegments(lightPos);
@@ -442,43 +445,28 @@ public class LightSource : MonoBehaviour
 	/// Gets all segments that are likely to block this source's light.
 	/// Stores the result in this instance's "segments" list.
 	/// </summary>
-	private void GetSegments(Vector2 lightPos)
+	private void GetSegments(Vector2 lightPos, float lightRadius)
 	{
 		segments.Clear();
 
 		if (LightType == LightTypes.NoBlockers)
 			return;
 
-		for (int i = 0; i < BoxWall.Walls.Count; ++i)
-		{
-			Bounds bounds3D = BoxWall.Walls[i].Box.bounds;
-			Rect bounds = new Rect(bounds3D.min.x, bounds3D.min.y, bounds3D.size.x, bounds3D.size.y);
+		//Get the region of the blocker grid this light source occupies.
+		Rect lightBnds = new Rect(lightPos.x - lightRadius, lightPos.y - lightRadius,
+								  lightRadius * 2.0f, lightRadius * 2.0f);
+		LightBlockerGrid.GridSpace gridSpace = LightBlockerGrid.Instance.CalculateGridSpace(lightBnds);
 
-			Vector2 center = bounds.center,
-					min = bounds.min,
-					max = bounds.max;
-
-			//Ignore this wall if it's too far away.
-			float wallRadius = new Vector2(bounds.size.x * 0.5f, bounds.size.y * 0.5f).magnitude;
-			float maxDist = Radius + wallRadius;
-			if ((lightPos - center).sqrMagnitude > (maxDist * maxDist))
-				continue;
-
-			//Only bother adding segments that are facing the light source.
-			//Left segment.
-			if (lightPos.x < min.x)
-				segments.Add(new Segment(min, new Vector2(min.x, max.y), lightPos));
-			//Right segment.
-			if (lightPos.x > max.x)
-				segments.Add(new Segment(new Vector2(max.x, min.y), max, lightPos));
-
-			//Top segment.
-			if (lightPos.y < min.y)
-				segments.Add(new Segment(min, new Vector2(max.x, min.y), lightPos));
-			//Bottom segment.
-			if (lightPos.y > max.y)
-				segments.Add(new Segment(new Vector2(min.x, max.y), max, lightPos));
-		}
+		//Get the blocking segments from all blockers in those grid spaces.
+		List<LightBlockerBase> blockers = new List<LightBlockerBase>();
+		for (int x = gridSpace.Min.x; x <= gridSpace.Max.x; ++x)
+			for (int y = gridSpace.Min.y; y <= gridSpace.Max.y; ++y)
+				foreach (LightBlockerBase blocker in LightBlockerGrid.Grid[x, y])
+					if (!blockers.Contains(blocker))
+					{
+						blockers.Add(blocker);
+						blocker.GetBlockingSegments(lightPos, lightRadius, segments);
+					}
 	}
 	/// <summary>
 	/// Simplifies all the segments in "segments" individually.
@@ -583,7 +571,7 @@ public class LightSource : MonoBehaviour
 			}
 
 			//Does the segment cross over the end of the unit circle?
-			if (segments[i].A1 < -PIOver2 && segments[i].A2 > PIOver2)
+			if ((segments[i].A2 - segments[i].A1) > Mathf.PI)//segments[i].A1 < -PIOver2 && segments[i].A2 > PIOver2)
 			{
 				//Get the point on the segment where the Y value is 0 (i.e. the exact point
 				//    where it crosses the end of the unit circle).
