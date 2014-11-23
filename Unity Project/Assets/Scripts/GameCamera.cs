@@ -69,6 +69,7 @@ public class GameCamera : MonoBehaviour
 				 ZoomMax = 130.0f;
 	public float ZoomMaxChangeSpeed = 0.1f;
 	public float ZoomMaxPlayerMouseDist = 1500.0f;
+	public float ZoomProportion = 2.0f;
 
 	public float CameraSnapDist = 10.0f;
 	public Vector2 CameraBorderLerp = new Vector2(0.1f, 0.1f);
@@ -137,7 +138,7 @@ public class GameCamera : MonoBehaviour
 
 		//Get the target zoom as a function of the distance.
 		float lerpDist = Mathf.Clamp(distPlayerToMouse / ZoomMaxPlayerMouseDist, 0.0f, 1.0f);
-		targetZoom = Mathf.Lerp(ZoomMin, ZoomMax, lerpDist);
+		targetZoom = Mathf.Lerp(ZoomMin, ZoomMax, Mathf.Pow(lerpDist, ZoomProportion));
 
 		//Now try to move from current zoom to target zoom.
 		if (Mathf.Abs(targetZoom - CurrentZoom) < (ZoomMaxChangeSpeed * Time.deltaTime))
@@ -209,16 +210,20 @@ public class GameCamera : MonoBehaviour
 				float deltaRight = (CameraBorderLerp.x - playerViewPosLerp.x);
 				MyTransform.position -= (Vector3)(camRight * deltaRight * WorldViewSize.x);
 
-				if (Vector2.Dot(speedAlongRight, camRight) > 0.0f)
+				if (Vector2.Dot(speedAlongRight, camRight) < 0.0f)
+				{
 					speedAlongRight = Vector2.zero;
+				}
 			}
 			else if (playerViewPosLerp.x > (1.0f - CameraBorderLerp.x))
 			{
 				float deltaLeft = WorldViewSize.x * (playerViewPosLerp.x - (1.0f - CameraBorderLerp.x));
 				MyTransform.position -= (Vector3)(-camRight * deltaLeft);
 
-				if (Vector2.Dot(speedAlongRight, camRight) < 0.0f)
+				if (Vector2.Dot(speedAlongRight, camRight) > 0.0f)
+				{
 					speedAlongRight = Vector2.zero;
+				}
 			}
 
 			if (playerViewPosLerp.y < CameraBorderLerp.y)
@@ -226,16 +231,20 @@ public class GameCamera : MonoBehaviour
 				float deltaUp = WorldViewSize.y * (CameraBorderLerp.y - playerViewPosLerp.y);
 				MyTransform.position -= (Vector3)(camUp * deltaUp);
 
-				if (Vector2.Dot(speedAlongUp, camRight) > 0.0f)
+				if (Vector2.Dot(speedAlongUp, camRight) < 0.0f)
+				{
 					speedAlongUp = Vector2.zero;
+				}
 			}
 			else if (playerViewPosLerp.y > (1.0f - CameraBorderLerp.y))
 			{
 				float deltaDown = WorldViewSize.x * (playerViewPosLerp.y - (1.0f - CameraBorderLerp.y));
 				MyTransform.position -= (Vector3)(-camUp * deltaDown);
 
-				if (Vector2.Dot(speedAlongUp, camRight) < 0.0f)
+				if (Vector2.Dot(speedAlongUp, camRight) > 0.0f)
+				{
 					speedAlongUp = Vector2.zero;
+				}
 			}
 
 			//Recombine the speed components.
@@ -250,7 +259,7 @@ public class GameCamera : MonoBehaviour
 			else finalSpeed = Speed.magnitude;
 
 			//Redirect the velocity to point towards the target.
-			Speed = ((Vector2)WorldMousePos - (Vector2)MyTransform.position).normalized * finalSpeed;
+			Speed = toTarget * finalSpeed;
 		}
 
 		MyTransform.position += (Vector3)Speed * Time.deltaTime;
