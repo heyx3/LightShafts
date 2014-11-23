@@ -460,13 +460,15 @@ public class LightSource : MonoBehaviour
 		//Get the blocking segments from all blockers in those grid spaces.
 		List<LightBlockerBase> blockers = new List<LightBlockerBase>();
 		for (int x = gridSpace.Min.x; x <= gridSpace.Max.x; ++x)
+			if (x >= 0 && x < LightBlockerGrid.Grid.GetLength(0))
 			for (int y = gridSpace.Min.y; y <= gridSpace.Max.y; ++y)
-				foreach (LightBlockerBase blocker in LightBlockerGrid.Grid[x, y])
-					if (!blockers.Contains(blocker))
-					{
-						blockers.Add(blocker);
-						blocker.GetBlockingSegments(lightPos, lightRadius, segments);
-					}
+				if (y >= 0 && y < LightBlockerGrid.Grid.GetLength(1))
+					foreach (LightBlockerBase blocker in LightBlockerGrid.Grid[x, y])
+						if (!blockers.Contains(blocker))
+						{
+							blockers.Add(blocker);
+							blocker.GetBlockingSegments(lightPos, lightRadius, segments);
+						}
 	}
 	/// <summary>
 	/// Simplifies all the segments in "segments" individually.
@@ -585,6 +587,13 @@ public class LightSource : MonoBehaviour
 				//Cut the original segment to the bottom-half.
 				segments[i] = new Segment(splitPoint, segments[i].P1, -Mathf.PI, segments[i].A1,
 										  dist, segments[i].D1);
+			}
+			
+
+			//Do the points need to be swapped again??
+			if (segments[i].A1 > segments[i].A2)
+			{
+				segments[i].SwapPoints();
 			}
 		}
 	}
