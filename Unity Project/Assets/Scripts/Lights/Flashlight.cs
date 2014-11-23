@@ -22,6 +22,14 @@ public class Flashlight : MonoBehaviour
 		if (Player == null)
 			Debug.LogError("The flashlight's 'Player' field hasn't been set!");
 	}
+	void Start()
+	{
+		MyTransform.position = Player.MyTransform.position;
+	}
+	void OnEnable()
+	{
+		Start();
+	}
 	void Update()
 	{
 		//Move to player's position.

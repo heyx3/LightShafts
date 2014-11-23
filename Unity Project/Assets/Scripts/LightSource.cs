@@ -274,6 +274,18 @@ public class LightSource : MonoBehaviour
 		if (MyTransform.parent != null)
 			Debug.LogError("Light sources can't be parented to anything!");
 	}
+	void Start()
+	{
+		if (LightType != LightTypes.Dynamic && LightMesh.vertexCount > 0)
+			return;
+		RebuildMesh();
+	}
+	void OnEnable()
+	{
+		if (LightBlockerGrid.Instance != null)
+			Start();
+	}
+
 	void OnDestroy()
 	{
 		Sources.Remove(this);
@@ -308,7 +320,7 @@ public class LightSource : MonoBehaviour
 		
 		rotZ = AngleCalculations.TransformEulerAngleToRadian(rotZ);
 		LightAngle += rotZ;
-
+		
 		RebuildMesh();
 	}
 

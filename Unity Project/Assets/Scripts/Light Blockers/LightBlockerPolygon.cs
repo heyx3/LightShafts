@@ -53,11 +53,14 @@ public class LightBlockerPolygon : LightBlockerBase
 	{
 		tr = transform;
 
-		if (IsStatic) ComputeGeometry();
+		ComputeGeometry();
 	}
 	protected override void OnUpdate()
 	{
-		if (!IsStatic) ComputeGeometry();
+		if (!IsStatic || transformed.Count == 0)
+		{
+			ComputeGeometry();
+		}
 	}
 
 	void OnDrawGizmos()
