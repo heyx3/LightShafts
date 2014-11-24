@@ -103,6 +103,21 @@ public class WorleyGenerator
 
 	#endregion
 
+	
+	/// <summary>
+	/// The number of grid points along the X direction last time this generator was used.
+	/// </summary>
+	public int NPointsX { get; private set; }
+	/// <summary>
+	/// The number of grid points along the Y direction last time this generator was used.
+	/// </summary>
+	public int NPointsY { get; private set; }
+	/// <summary>
+	/// The points in each grid cell last time this generator was used.
+	/// The positions are specified in pixels.
+	/// </summary>
+	public Vector2[,] CellPoints { get; private set; }
+
 
 	/// <summary>
 	/// How to calculate the distance between two points.
@@ -149,23 +164,23 @@ public class WorleyGenerator
 	{
 		Random.seed = Seed;
 
-		int nPointsX = outValues.GetLength(0) / GridSizeX,
-			nPointsY = outValues.GetLength(1) / GridSizeY;
+		int NPointsX = outValues.GetLength(0) / GridSizeX,
+			NPointsY = outValues.GetLength(1) / GridSizeY;
 
 		//First create a point in each grid cell.
 		Vector2 variance = GridPositionVarianceLerp * 0.5f;
-		Vector2[,] points = new Vector2[nPointsX, nPointsY];
-		for (int x = 0; x < nPointsX; ++x)
-			for (int y = 0; y < nPointsY; ++y)
+		CellPoints = new Vector2[NPointsX, NPointsY];
+		for (int x = 0; x < NPointsX; ++x)
+			for (int y = 0; y < NPointsY; ++y)
 			{
 				Vector2 posLerp = new Vector2(Random.Range(0.5f - variance.x, 0.5f + variance.x),
 											  Random.Range(0.5f - variance.y, 0.5f + variance.y));
-				points[x, y] = new Vector2(Mathf.Lerp((float)(x * GridSizeX),
-													  (float)((x + 1) * GridSizeX),
-													  posLerp.x),
-										   Mathf.Lerp((float)(y * GridSizeY),
-													  (float)((y + 1) * GridSizeY),
-													  posLerp.y));
+				CellPoints[x, y] = new Vector2(Mathf.Lerp((float)(x * GridSizeX),
+														  (float)((x + 1) * GridSizeX),
+														  posLerp.x),
+											   Mathf.Lerp((float)(y * GridSizeY),
+														  (float)((y + 1) * GridSizeY),
+														  posLerp.y));
 			}
 
 
@@ -197,15 +212,15 @@ public class WorleyGenerator
 				for (int deltaGridX = -1; deltaGridX <= 1; ++deltaGridX)
 				{
 					int gridX = gridPosX + deltaGridX;
-					if (gridX >= 0 && gridX < points.GetLength(0))
+					if (gridX >= 0 && gridX < CellPoints.GetLength(0))
 					{
 						for (int deltaGridY = -1; deltaGridY <= 1; ++deltaGridY)
 						{
 							int gridY = gridPosY + deltaGridY;
-							if (gridY >= 0 && gridY < points.GetLength(0))
+							if (gridY >= 0 && gridY < CellPoints.GetLength(0))
 							{
 								//The grid cell being searched is a valid cell, so see how close its point is.
-								float dist = distCalc(pos, points[gridX, gridY]);
+								float dist = distCalc(pos, CellPoints[gridX, gridY]);
 
 								//Insert it into the correct spot in the collection of distances.
 								if (float.IsNaN(distances[0]))
