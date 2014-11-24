@@ -164,8 +164,8 @@ public class WorleyGenerator
 	{
 		Random.seed = Seed;
 
-		int NPointsX = outValues.GetLength(0) / GridSizeX,
-			NPointsY = outValues.GetLength(1) / GridSizeY;
+		NPointsX = outValues.GetLength(0) / GridSizeX;
+		NPointsY = outValues.GetLength(1) / GridSizeY;
 
 		//First create a point in each grid cell.
 		Vector2 variance = GridPositionVarianceLerp * 0.5f;

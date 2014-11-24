@@ -29,7 +29,7 @@ public class WorleyVisualizer : MonoBehaviour
 	private void Generate()
 	{
 		//Set up the texture.
-		OutTex = new Texture2D(TexWidth, TexHeight);
+		OutTex = new Texture2D(TexWidth, TexHeight, TextureFormat.RGBA32, false, true);
 
 		//Generate the values.
 		float[,] vals = new float[TexWidth, TexHeight];
@@ -46,7 +46,6 @@ public class WorleyVisualizer : MonoBehaviour
 			}
 
 		//Convert the values to colors and update the texture.
-		Color[,] cols = new Color[TexWidth, TexHeight];
 		for (int x = 0; x < TexWidth; ++x)
 			for (int y = 0; y < TexHeight; ++y)
 			{

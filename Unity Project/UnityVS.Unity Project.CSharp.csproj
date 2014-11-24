@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\City Generation\VoroniGenerator.cs" />
+    <Compile Include="Assets\Scripts\City Generation\VoroniVisualizer.cs" />
     <Compile Include="Assets\Scripts\City Generation\WorleyGenerator.cs" />
     <Compile Include="Assets\Scripts\City Generation\WorleyVisualizer.cs" />
     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerBase.cs" />
