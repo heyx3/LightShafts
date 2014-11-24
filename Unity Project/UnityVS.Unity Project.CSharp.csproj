@@ -50,6 +50,9 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\City Generation\VoroniGenerator.cs" />
+    <Compile Include="Assets\Scripts\City Generation\WorleyGenerator.cs" />
+    <Compile Include="Assets\Scripts\City Generation\WorleyVisualizer.cs" />
     <Compile Include="Assets\Scripts\Light Blockers\LightBlockerBase.cs" />
     <Compile Include="Assets\Scripts\AI\AIBaseComponent.cs" />
     <Compile Include="Assets\Scripts\AI\AIPathFollower.cs" />
