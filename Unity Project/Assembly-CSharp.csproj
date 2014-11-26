@@ -53,10 +53,12 @@
      <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
      <Compile Include="Assets\Scripts\AI\States\AIState_WaitForVisibleTarget.cs" />
      <Compile Include="Assets\Scripts\AngleCalculations.cs" />
-     <Compile Include="Assets\Scripts\City Generation\VoroniGenerator.cs" />
-     <Compile Include="Assets\Scripts\City Generation\VoroniVisualizer.cs" />
-     <Compile Include="Assets\Scripts\City Generation\WorleyGenerator.cs" />
-     <Compile Include="Assets\Scripts\City Generation\WorleyVisualizer.cs" />
+     <Compile Include="Assets\Scripts\City Generation\CityLayoutGenerater.cs" />
+     <Compile Include="Assets\Scripts\City Generation\CityLayoutVisualizer.cs" />
+     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniGenerator.cs" />
+     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniVisualizer.cs" />
+     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\WorleyGenerator.cs" />
+     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\WorleyVisualizer.cs" />
      <Compile Include="Assets\Scripts\FinalCam.cs" />
      <Compile Include="Assets\Scripts\GameCamera.cs" />
      <Compile Include="Assets\Scripts\GameRenderQuad.cs" />

@@ -64,8 +64,23 @@ public class VoroniGenerator
 		float[,] noise = new float[NoiseSizeX, NoiseSizeY];
 		Generator.Generate(noise);
 
-		//Each Worley grid cell can be mapped to a Voroni cell.
-		cells.Capacity = Generator.NPointsX * Generator.NPointsY;
+		//Analyze the noise.
+		/*
+		float min = float.MaxValue,
+			  max = float.MinValue;
+		for (int x = 0; x < NoiseSizeX; ++x)
+			for (int y = 0; y < NoiseSizeY; ++y)
+			{
+				min = Mathf.Min(min, noise[x, y]);
+				max = Mathf.Max(max, noise[x, y]);
+			}
+		for (int x = 0; x < NoiseSizeX; ++x)
+			for (int y = 0; y < NoiseSizeY; ++y)
+				noise[x, y] = Mathf.InverseLerp(min, max, noise[x, y]);
+		*/
+
+			//Each Worley grid cell can be mapped to a Voroni cell.
+			cells.Capacity = Generator.NPointsX * Generator.NPointsY;
 
 		//Generate each Voroni cell.
 		Vector2 cellHalfSize = 0.5f * new Vector2(Generator.GridSizeX, Generator.GridSizeY);
@@ -79,7 +94,8 @@ public class VoroniGenerator
 					pixelY = (int)Generator.CellPoints[x, y].y;
 
 
-				if (true)
+				//if (true)
+				if (tracerPoses != null)
 				{
 					//Add tracers that are likely to end up at a corner.
 
@@ -95,107 +111,120 @@ public class VoroniGenerator
 					
 
 					//Now put tracers at that distance from the point towards certain targets.
-					int posX, posY;
-
 
 					//If this point is on an edge, use special tracer placement.
 					bool onBottomEdge = (y == 0),
 						 onTopEdge = (y == Generator.NPointsY - 1),
 						 onLeftEdge = (x == 0),
 						 onRightEdge = (x == Generator.NPointsX - 1);
-					if (onBottomEdge)
+					if (onBottomEdge || onTopEdge)
 					{
-						//Is this point on a bottom corner?
+						int yEnd = (onBottomEdge ? 0 : NoiseSizeY);
+
+						//Is this point on a [top/bottom] corner?
 						if (onLeftEdge || onRightEdge)
 						{
-							int xEnd = (onLeftEdge ? 0 : Generator.NPointsX * Generator.GridSizeX);
-							tracerPoses.Add(new Vector2i(xEnd, 0));
+							int xEnd = (onLeftEdge ? 0 : NoiseSizeX);
+							tracerPoses.Add(new Vector2i(xEnd, yEnd));
 
-							//Trace upwards and horizontally outwards.
+							Vector2i towardsCenter = new Vector2i((onLeftEdge ? 1 : -1),
+																  (onBottomEdge ? 1 : -1));
 
-							Vector2 targetPos = (Generator.CellPoints[x, y + 1] + Generator.CellPoints[x, y]) * 0.5f;
-							targetPos.x = xEnd;
-							Vector2 toTarget = (targetPos - Generator.CellPoints[x, y]).normalized;
-							Vector2 tracerPos = Generator.CellPoints[x, y] + (toTarget * distFromPoint);
-
-							posX = Mathf.Clamp((int)tracerPos.x, 0, NoiseSizeX);
-							posY = Mathf.Clamp((int)tracerPos.y, 0, NoiseSizeY);
-
-							RunTracer(noise, ref posX, ref posY);
-							tracerPoses.Add(new Vector2i(posX, posY));
+							//Trace vertically inwards and horizontally outwards.
+							Vector2 targetPos = (Generator.CellPoints[x, y + towardsCenter.y] +
+												 Generator.CellPoints[x, y]) *
+												0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 
 
-							//Trace downwards and horizontally inwards.
-
-							int inDir = (onLeftEdge ? 1 : -1);
-							targetPos = (Generator.CellPoints[x + inDir, y] + Generator.CellPoints[x, y]) * 0.5f;
-							toTarget = (targetPos - Generator.CellPoints[x, y]).normalized;
-							tracerPos = Generator.CellPoints[x, y] + (toTarget * distFromPoint);
-							
-							posX = Mathf.Clamp((int)tracerPos.x, 0, NoiseSizeX);
-							posY = Mathf.Clamp((int)tracerPos.y, 0, NoiseSizeY);
-
-							RunTracer(noise, ref posX, ref posY);
-							tracerPoses.Add(new Vector2i(posX, posY));
+							//Trace vertically outwards and horizontally inwards.
+							targetPos = (Generator.CellPoints[x + towardsCenter.x, y] +
+										 Generator.CellPoints[x, y]) * 0.5f;
+							targetPos.y = yEnd;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 
 
-							//TODO: Trace the midpoint of the inner upward corner and the adjacent edges.
+							//Trace the midpoint of the inner [downward/upward] corner and the adjacent edges.
+
+							targetPos = (Generator.CellPoints[x, y + towardsCenter.y] +
+										 Generator.CellPoints[x + towardsCenter.x, y + towardsCenter.y]) *
+										0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
+
+							targetPos = (Generator.CellPoints[x + towardsCenter.x, y + towardsCenter.y] +
+										 Generator.CellPoints[x + towardsCenter.x, y]) *
+										0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 						}
-						//Otherwise, it's just on the bottom edge.
+						//Otherwise, it's just on the [top/bottom] edge.
 						else
 						{
-							//TODO: Implement.
+							int towardsCenterY = (onBottomEdge ? 1 : -1);
+
+							//For both "corners" diagonally adjacent to this point,
+							//    trace towards the midpoint of that corner and both adjacent edges.
+							for (int xDir = -1; xDir <= 1; xDir += 2)
+							{
+								//Put down a tracer moving between this corner and either edge next to it.
+
+								Vector2 targetPos = (Generator.CellPoints[x + xDir, y] +
+													 Generator.CellPoints[x + xDir, y + towardsCenterY]) *
+													0.5f;
+								tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
+
+								targetPos = (Generator.CellPoints[x + xDir, y + towardsCenterY] +
+											 Generator.CellPoints[x, y + towardsCenterY]) *
+											0.5f;
+								tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
+							}
 						}
 					}
-					else if (onTopEdge)
+					//Is it on the left/right edge?
+					else if (onLeftEdge || onRightEdge)
 					{
-						//TODO: Finsh.
+						int towardsCenterX = (onLeftEdge ? 1 : -1);
 
-						//Top-left corner.
-						if (onLeftEdge || onRightEdge)
+						//For both "corners" diagonally adjacent to this point,
+						//    trace towards the midpoint of that corner and both adjacent edges.
+						for (int yDir = 1; yDir <= 1; yDir += 2)
 						{
+							//Put down a tracer moving between this corner and either edge next to it.
 
-						}
-						//Otherwise, just on the top edge.
-						else
-						{
+							Vector2 targetPos = (Generator.CellPoints[x + towardsCenterX, y] +
+												 Generator.CellPoints[x + towardsCenterX, y + yDir]) *
+												0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 
+							targetPos = (Generator.CellPoints[x + towardsCenterX, y + yDir] +
+										 Generator.CellPoints[x, y + yDir]) *
+										0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 						}
 					}
-					//Is it on the left edge?
-					else if (onLeftEdge)
-					{
-						//TODO: Implement.
-					}
-					//Is it on the right edge.
-					else if(onRightEdge)
-					{
-						//TODO: Implement.
-					}
-					
-					//Otherwise, iterate through all four "corners" relative to this point
-					//    and trace towards the midpoint of the corner and each adjacent edge.
-					for (int yDir = -1; yDir <= 1; yDir += 2)
+					//Otherwise, iterate through all four "corners" diagonally adjacent to this point
+					//    and trace towards the midpoint of that corner and both adjacent edges.
+					else for (int yDir = -1; yDir <= 1; yDir += 2)
 					{
 						for (int xDir = -1; xDir <= 1; xDir += 2)
 						{
 							//Put down a tracer moving between this corner and either edge next to it.
+
 							Vector2 targetPos = (Generator.CellPoints[x + xDir, y] +
 												 Generator.CellPoints[x + xDir, y + yDir]) *
-												0.5f,
-									toTarget = (targetPos - Generator.CellPoints[x, y]).normalized;
-							Vector2 tracerPos = Generator.CellPoints[x, y] + (toTarget * distFromPoint);
+												0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
+							
 
-							posX = (int)tracerPos.x - Mathf.Clamp(xDir, -1, 0);
-							posY = (int)tracerPos.y - Mathf.Clamp(yDir, -1, 0);
-
-							RunTracer(noise, ref posX, ref posY);
-							tracerPoses.Add(new Vector2i(posX, posY));
+							targetPos = (Generator.CellPoints[x, y + yDir] +
+										 Generator.CellPoints[x + xDir, y + yDir]) *
+										0.5f;
+							tracerPoses.Add(RunTracer(noise, new Vector2i(x, y), targetPos, distFromPoint));
 						}
 					}
 				}
 				else
 				{
+					/*
 					//Add tracers above/below the point.
 					for (int traceX = pixelX - TraceRadius; traceX <= pixelX + TraceRadius; ++traceX)
 					{
@@ -249,6 +278,7 @@ public class VoroniGenerator
 							}
 						}
 					}
+					 */
 				}
 
 				//Remove any tracers that ended up in the same location as another tracer.
@@ -282,8 +312,20 @@ public class VoroniGenerator
 
 		return cells;
 	}
-	private void RunTracer(float[,] noise, ref int posX, ref int posY)
+	/// <summary>
+	/// Pushes a "tracer" roughly from the point in the given grid cell towards the given target starting position until
+	/// it reaches a local maximum in the noise grid. Returns its final resting position in the noise grid.
+	/// </summary>
+	private Vector2i RunTracer(float[,] noise, Vector2i cellPointLoc, Vector2 targetStartPos, float maxDistFromPoint)
 	{
+		Vector2 toTarget = (targetStartPos - Generator.CellPoints[cellPointLoc.x, cellPointLoc.y]).normalized,
+				tracerPos = Generator.CellPoints[cellPointLoc.x, cellPointLoc.y] +
+							(toTarget * maxDistFromPoint);
+
+		int posX = Mathf.Clamp((int)tracerPos.x, 0, NoiseSizeX),
+			posY = Mathf.Clamp((int)tracerPos.y, 0, NoiseSizeY);
+
+
 		//Keep climbing up until the highest-possible value is found.
 		while (true)
 		{
@@ -314,5 +356,7 @@ public class VoroniGenerator
 				break;
 			}
 		}
+
+		return new Vector2i(posX, posY);
 	}
 }
