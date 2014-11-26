@@ -12,7 +12,7 @@ public class CityLayoutVisualizer : MonoBehaviour
 
 	public bool ShouldGenerateNow = true;
 
-	public Color BlockColor = Color.white,
+	public Color BlockColor = Color.yellow,
 				 OpenSpaceColor = Color.white,
 				 RoadColor = new Color(0.4f, 0.1f, 0.1f);
 	public float RoadRadius = 50.0f;
@@ -42,14 +42,11 @@ public class CityLayoutVisualizer : MonoBehaviour
 
 		//The roads.
 		Gizmos.color = RoadColor;
-		foreach (KeyValuePair<Vector2, List<Vector2>> intersection in Generator.RoadConnections)
-		{
-			Gizmos.DrawSphere(new Vector3(intersection.Key.x, intersection.Key.y, 0.0f),
-							  RoadRadius);
-
-			foreach (Vector2 roadEnd in intersection.Value)
-				Gizmos.DrawLine(new Vector3(intersection.Key.x, intersection.Key.y, 0.0f),
-								new Vector3(roadEnd.x, roadEnd.y, 0.0f));
-		}
+		foreach (CityLayoutGenerator.Road road in Generator.VerticalRoads)
+			Gizmos.DrawLine(new Vector3(road.Pos, 0.0f, 0.0f),
+							new Vector3(road.Pos, Generator.CitySize.y, 0.0f));
+		foreach (CityLayoutGenerator.Road road in Generator.HorizontalRoads)
+			Gizmos.DrawLine(new Vector3(0.0f, road.Pos, 0.0f),
+							new Vector3(Generator.CitySize.x, road.Pos, 0.0f));
 	}
 }

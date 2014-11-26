@@ -9,10 +9,26 @@ using UnityEngine;
 public class CityLayoutGenerator
 {
 	/// <summary>
-	/// The major roads, represented as a dictionary that indexes each intersection position
-	/// into a collection of intersections that are directly connected to it.
+	/// Represents a vertical or horizontal road.
+	/// Has a position and a width.
 	/// </summary>
-	public Dictionary<Vector2, List<Vector2>> RoadConnections { get; private set; }
+	public struct Road
+	{
+		public float Pos, Width;
+		public Road(float pos, float width) { Pos = pos; Width = width; }
+		public void SetPos(float pos) { Pos = pos; }
+		public void SetWidth(float width) { Width = width; }
+	}
+
+
+	/// <summary>
+	/// The horizontal roads separating each block row, in ascending order by position.
+	/// </summary>
+	public List<Road> HorizontalRoads { get; private set; }
+	/// <summary>
+	/// The vertical roads separating each block column, in ascending order by position.
+	/// </summary>
+	public List<Road> VerticalRoads { get; private set; }
 
 	/// <summary>
 	/// The individual city blocks.
@@ -32,20 +48,22 @@ public class CityLayoutGenerator
 	public float RoadWidthBase = 150.0f,
 				 RoadWidthVariance = 50.0f;
 
-	public int NBlocksX = 3,
-		       NBlocksY = 3;
+	public int NBlocksX = 5,
+		       NBlocksY = 5;
 	public Vector2 BlockBaseSize = new Vector2(1000.0f, 1000.0f);
 	public Vector2 BlockSizeVariation = new Vector2(200.0f, 200.0f);
 
 	public int Seed = 42;
 
-	public int MinOpenSpaces = 1,
-			   MaxOpenSpaces = 3;
+	public int MinOpenSpaces = 8,
+			   MaxOpenSpaces = 12;
 
 
 	public CityLayoutGenerator()
 	{
-		RoadConnections = new Dictionary<Vector2, List<Vector2>>();
+		HorizontalRoads = new List<Road>();
+		VerticalRoads = new List<Road>();
+
 		Blocks = new List<Rect>();
 		OpenSpaces = new List<Rect>();
 		CitySize = Vector2.zero;
@@ -72,7 +90,8 @@ public class CityLayoutGenerator
 	/// </summary>
 	public void Generate()
 	{
-		RoadConnections.Clear();
+		HorizontalRoads.Clear();
+		VerticalRoads.Clear();
 		Blocks.Clear();
 		OpenSpaces.Clear();
 
@@ -92,75 +111,60 @@ public class CityLayoutGenerator
 										Random.Range(0.0f, 1.0f)));
 
 		//Get the size of each road.
-		List<float> roadWidths = new List<float>(),
-					roadHeights = new List<float>();
 		for (int x = 0; x <= NBlocksX; ++x)
-			roadWidths.Add(Mathf.Lerp(RoadWidthBase - RoadWidthVariance,
-									  RoadWidthBase + RoadWidthVariance,
-									  Random.Range(0.0f, 1.0f)));
-		for (int x = 0; x <= NBlocksX; ++x)
-			roadHeights.Add(Mathf.Lerp(RoadWidthBase - RoadWidthVariance,
-						 			   RoadWidthBase + RoadWidthVariance,
-									   Random.Range(0.0f, 1.0f)));
+		{
+			Road rd = new Road();
+			rd.Width = Mathf.Lerp(RoadWidthBase - RoadWidthVariance,
+								  RoadWidthBase + RoadWidthVariance,
+								  Random.Range(0.0f, 1.0f));
+			VerticalRoads.Add(rd);
+		}
+		for (int y = 0; y <= NBlocksY; ++y)
+		{
+			Road rd = new Road();
+			rd.Width = Mathf.Lerp(RoadWidthBase - RoadWidthVariance,
+								  RoadWidthBase + RoadWidthVariance,
+								  Random.Range(0.0f, 1.0f));
+			HorizontalRoads.Add(rd);
+		}
 
 
-		//Generate the road points and spaces.
+		//Generate the road poisitions and block spaces.
 
-		float posX = roadWidths[0] * 0.5f;
+		float posX = VerticalRoads[0].Width * 0.5f;
 		float posY;
-		float prevPosX = float.NaN,
-			  prevPosY = float.NaN;
 
 		for (int x = 0; x <= NBlocksX; ++x)
 		{
+			VerticalRoads[x] = new Road(posX, VerticalRoads[x].Width);
+
 			float roadWidthX = float.NaN;
 			if (x < NBlocksX)
 			{
-				roadWidthX = (0.5f * roadWidths[x]) + (0.5f * roadWidths[x + 1]);
+				roadWidthX = (0.5f * VerticalRoads[x].Width) +
+							 (0.5f * VerticalRoads[x + 1].Width);
 			}
 			
-			posY = roadHeights[0] * 0.5f;
+			posY = HorizontalRoads[0].Width * 0.5f;
 
 			for (int y = 0; y <= NBlocksY; ++y)
 			{
+				HorizontalRoads[y] = new Road(posY, HorizontalRoads[y].Width);
+
 				float roadWidthY = float.NaN;
 				if (y < NBlocksY)
 				{
-					roadWidthY = (0.5f * roadHeights[y]) + (0.5f * roadHeights[y + 1]);
-				}
-
-
-				//Generate roads connected to this point.
-
-				Vector2 pos = new Vector2(posX, posY);
-				RoadConnections.Add(pos, new List<Vector2>());
-
-				if (x > 0)
-				{
-					RoadConnections[pos].Add(new Vector2(prevPosX, pos.y));
-				}
-				if (x < NBlocksX)
-				{
-					RoadConnections[pos].Add(new Vector2(pos.x + (blockWidths[x] + roadWidthX), pos.y));
-				}
-				if (y > 0)
-				{
-					RoadConnections[pos].Add(new Vector2(pos.x, prevPosY));
-				}
-				if (y < NBlocksY)
-				{
-					RoadConnections[pos].Add(new Vector2(pos.x, pos.y + (blockHeights[y] + roadWidthY)));
+					roadWidthY = (0.5f * HorizontalRoads[y].Width) +
+								 (0.5f * HorizontalRoads[y + 1].Width);
 				}
 
 				//Generate a block.
 				if (x < NBlocksX && y < NBlocksY)
 				{
-					Blocks.Add(new Rect(posX + (0.5f * roadWidths[x]),
-										posY + (0.5f * roadHeights[y]),
+					Blocks.Add(new Rect(posX + (0.5f * VerticalRoads[x].Width),
+										posY + (0.5f * HorizontalRoads[y].Width),
 										blockWidths[x], blockHeights[y]));
 				}
-
-				prevPosY = posY;
 
 				if (y < NBlocksY)
 				{
@@ -168,18 +172,17 @@ public class CityLayoutGenerator
 				}
 				else
 				{
-					CitySize = new Vector2(CitySize.x, posY + (0.5f * roadHeights[y]));
+					CitySize = new Vector2(CitySize.x, posY + (0.5f * HorizontalRoads[y].Width));
 				}
 			}
 
-			prevPosX = posX;
 			if (x < NBlocksX)
 			{
 				posX += blockWidths[x] + roadWidthX;
 			}
 			else
 			{
-				CitySize = new Vector2(posX + (roadWidths[x] * 0.5f), CitySize.y);
+				CitySize = new Vector2(posX + (VerticalRoads[x].Width * 0.5f), CitySize.y);
 			}
 		}
 

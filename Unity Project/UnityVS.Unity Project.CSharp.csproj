@@ -50,6 +50,8 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\City Generation\BlockLayoutGenerator.cs" />
+    <Compile Include="Assets\Scripts\City Generation\BlockLayoutVisualizer.cs" />
     <Compile Include="Assets\Scripts\City Generation\CityLayoutGenerater.cs" />
     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniGenerator.cs" />
     <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniVisualizer.cs" />

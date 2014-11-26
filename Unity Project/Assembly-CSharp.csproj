@@ -53,6 +53,8 @@
      <Compile Include="Assets\Scripts\AI\States\AIState_ChaseCharacter.cs" />
      <Compile Include="Assets\Scripts\AI\States\AIState_WaitForVisibleTarget.cs" />
      <Compile Include="Assets\Scripts\AngleCalculations.cs" />
+     <Compile Include="Assets\Scripts\City Generation\BlockLayoutGenerator.cs" />
+     <Compile Include="Assets\Scripts\City Generation\BlockLayoutVisualizer.cs" />
      <Compile Include="Assets\Scripts\City Generation\CityLayoutGenerater.cs" />
      <Compile Include="Assets\Scripts\City Generation\CityLayoutVisualizer.cs" />
      <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniGenerator.cs" />
