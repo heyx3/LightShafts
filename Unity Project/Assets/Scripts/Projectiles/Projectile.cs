@@ -36,11 +36,21 @@ public class Projectile : MonoBehaviour
 
 	void OnCollisionEnter2D(Collision2D collision)
 	{
+		BaseShootableObject shootable = collision.collider.GetComponent<BaseShootableObject>();
+		if (shootable != null)
+		{
+			shootable.OnShot(this, collision);
+		}
+
+
 		if (DropAmmoOnDestroyed)
 		{
 			SingleAmmo embedded = ((GameObject)Instantiate(DroppedAmmoPrefab)).GetComponent<SingleAmmo>();
-			embedded.EmbedInCollidedObject(collision, transform.rotation);
+
+			if (collision.collider != null)
+				embedded.EmbedInCollidedObject(collision, transform.rotation);
 		}
+
 
 		Destroy(gameObject);
 	}
