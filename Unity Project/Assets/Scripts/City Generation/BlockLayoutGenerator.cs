@@ -23,7 +23,7 @@ public class BlockLayoutGenerator
 	public List<Rect> OpenSpaces { get; private set; }
 
 
-	public Rect BlockArea = new Rect(-100.0f, -100.0f, 200.0f, 200.0f);
+	[System.NonSerialized] public Rect BlockArea = new Rect(-100.0f, -100.0f, 200.0f, 200.0f);
 
 	public float RoadWidthBase = 50.0f,
 				 RoadWidthVariance = 10.0f;

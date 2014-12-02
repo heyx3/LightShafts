@@ -270,9 +270,9 @@ public class LightSource : MonoBehaviour
 		LightMesh = mf.mesh;
 
 
-		//Sanity check.
+		//Remove parent.
 		if (MyTransform.parent != null)
-			Debug.LogError("Light sources can't be parented to anything!");
+			MyTransform.parent = null;
 	}
 	void Start()
 	{

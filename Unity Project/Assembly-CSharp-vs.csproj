@@ -59,6 +59,7 @@
      <Compile Include="Assets\Scripts\City Generation\BuildingGenerator.cs" />
      <Compile Include="Assets\Scripts\City Generation\CityLayoutGenerater.cs" />
      <Compile Include="Assets\Scripts\City Generation\CityLayoutVisualizer.cs" />
+     <Compile Include="Assets\Scripts\City Generation\GeneratorComponent.cs" />
      <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniGenerator.cs" />
      <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\VoroniVisualizer.cs" />
      <Compile Include="Assets\Scripts\City Generation\Voroni Block Generation\WorleyGenerator.cs" />
