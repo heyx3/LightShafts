@@ -10,16 +10,9 @@ using UnityEngine;
 [Serializable]
 public class RoadGenerator
 {
-	public class RoadVertexList
-	{
-		public List<Vector3> Poses = new List<Vector3>();
-		public List<Vector2> UVs = new List<Vector2>();
-		public List<int> Indices = new List<int>();
-	}
-
 	public static void CreateHorzRoad(float startX, float endX, float y, float thickness, float posZ,
 									  Vector2 lineTexSize, float baseRoadScale, float lineRoadScale,
-									  RoadVertexList baseVerts, RoadVertexList lineVerts)
+									  TileVertexList baseVerts, TileVertexList lineVerts)
 	{
 		float halfThickness = thickness * 0.5f;
 		float finalLineTexScale = lineTexSize.x / lineTexSize.y / thickness;
@@ -71,7 +64,7 @@ public class RoadGenerator
 	}
 	public static void CreateVertRoad(float startY, float endY, float x, float thickness, float posZ,
 									  Vector2 lineTexSize, float baseRoadScale, float lineRoadScale,
-									  RoadVertexList baseVerts, RoadVertexList lineVerts)
+									  TileVertexList baseVerts, TileVertexList lineVerts)
 	{
 		float halfThickness = thickness * 0.5f;
 		float finalLineTexScale = lineTexSize.x / lineTexSize.y / thickness;
@@ -128,7 +121,7 @@ public class RoadGenerator
 	/// </summary>
 	public static void CreateIntersection(Vector2 intersectionCenter, float width, float height,
 										  float posZ, float baseRoadScale,
-										  RoadVertexList baseVerts, RoadVertexList lineVerts)
+										  TileVertexList baseVerts, TileVertexList lineVerts)
 	{
 		Vector2 halfSize = new Vector2(width, height) * 0.5f;
 		Vector2 min = intersectionCenter - halfSize,
@@ -172,7 +165,7 @@ public class RoadGenerator
 	/// </summary>
 	public void GenerateMajorRoads(List<CityLayoutGenerator.Road> vertRoads,
 								   List<CityLayoutGenerator.Road> horzRoads,
-								   RoadVertexList baseVerts, RoadVertexList lineVerts,
+								   TileVertexList baseVerts, TileVertexList lineVerts,
 								   Vector2 lineTexSize)
 	{
 		for (int x = 0; x < vertRoads.Count; ++x)
@@ -210,8 +203,8 @@ public class RoadGenerator
 	/// </summary>
 	public void GenerateMinorRoads(List<CityLayoutGenerator.Road> vertRoads,
 								   List<CityLayoutGenerator.Road> horzRoads,
-								   RoadVertexList baseVertsRoad, RoadVertexList lineVertsRoad,
-								   RoadVertexList baseVertsAlley, RoadVertexList lineVertsAlley,
+								   TileVertexList baseVertsRoad, TileVertexList lineVertsRoad,
+								   TileVertexList baseVertsAlley, TileVertexList lineVertsAlley,
 								   Vector2 alleyLineTexSize, Vector2 minorRoadLineTexSize)
 	{
 		//Roads are only intercepted if a bigger or equal road intersects it.

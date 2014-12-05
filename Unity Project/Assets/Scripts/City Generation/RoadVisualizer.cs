@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-using RoadVertList = RoadGenerator.RoadVertexList;
-
 
 /// <summary>
 /// Visualizes road generation for testing.
@@ -42,8 +40,8 @@ public class RoadVisualizer : MonoBehaviour
 
 
 			//Create major road mesh objects.
-			RoadVertList baseVerts = new RoadVertList(),
-						 lineVerts = new RoadVertList();
+			TileVertexList baseVerts = new TileVertexList(),
+						   lineVerts = new TileVertexList();
 			RoadGen.GenerateMajorRoads(CityLayoutGen.VerticalRoads, CityLayoutGen.HorizontalRoads,
 									   baseVerts, lineVerts,
 									   new Vector2(MajorRoadLines.width, MajorRoadLines.height));
@@ -59,10 +57,10 @@ public class RoadVisualizer : MonoBehaviour
 				blockGen.Seed = UnityEngine.Random.Range(0, 999191919);
 				blockGen.Generate();
 
-				RoadVertList baseVertsRoad = new RoadVertList(),
-							 lineVertsRoad = new RoadVertList(),
-							 baseVertsAlley = new RoadVertList(),
-							 lineVertsAlley = new RoadVertList();
+				TileVertexList baseVertsRoad = new TileVertexList(),
+							   lineVertsRoad = new TileVertexList(),
+							   baseVertsAlley = new TileVertexList(),
+							   lineVertsAlley = new TileVertexList();
 				RoadGen.GenerateMinorRoads(blockGen.VerticalRoads, blockGen.HorizontalRoads,
 										   baseVertsRoad, lineVertsRoad, baseVertsAlley, lineVertsAlley,
 										   new Vector2(AlleyLines.width, AlleyLines.height),
@@ -75,7 +73,7 @@ public class RoadVisualizer : MonoBehaviour
 		}
 	}
 
-	private void CreateRoadObject(RoadVertList verts, Material mat, Texture2D tex, string objectName)
+	private void CreateRoadObject(TileVertexList verts, Material mat, Texture2D tex, string objectName)
 	{
 		Mesh msh = new Mesh();
 
