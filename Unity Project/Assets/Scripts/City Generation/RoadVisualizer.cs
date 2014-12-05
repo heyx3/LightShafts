@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+using RoadVertList = RoadGenerator.RoadVertexList;
+
 
 /// <summary>
 /// Visualizes road generation for testing.
@@ -9,10 +11,11 @@ using UnityEngine;
 public class RoadVisualizer : MonoBehaviour
 {
 	public Material OpaqueRoadMat, TransparentRoadMat;
-	public Texture MajorRoadLines, MinorRoadLines, AlleyLines,
-				   MajorRoadBase, MinorRoadBase, AlleyBase;
+	public Texture2D MajorRoadLines, MinorRoadLines, AlleyLines,
+				     MajorRoadBase, MinorRoadBase, AlleyBase;
 
 	public CityLayoutGenerator CityLayoutGen = new CityLayoutGenerator();
+	public BlockLayoutGenerator BlockLayoutGen = new BlockLayoutGenerator();
 	public RoadGenerator RoadGen = new RoadGenerator();
 
 	public bool ShouldGenerateNow = false;
@@ -38,52 +41,55 @@ public class RoadVisualizer : MonoBehaviour
 			CityLayoutGen.Generate();
 
 
-			//Get mesh data for the major roads.
-
-			Mesh majorBase = new Mesh(),
-				 majorLines = new Mesh();
-
-			List<Vector3> basePoses = new List<Vector3>(),
-						  linePoses = new List<Vector3>();
-			List<Vector2> baseUVs = new List<Vector2>(),
-						  lineUVs = new List<Vector2>();
-			List<int> baseIndices = new List<int>(),
-					  lineIndices = new List<int>();
-
+			//Create major road mesh objects.
+			RoadVertList baseVerts = new RoadVertList(),
+						 lineVerts = new RoadVertList();
 			RoadGen.GenerateMajorRoads(CityLayoutGen.VerticalRoads, CityLayoutGen.HorizontalRoads,
-									   basePoses, baseUVs, baseIndices, linePoses, lineUVs, lineIndices,
-									   (float)MajorRoadLines.height);
-
-			majorBase.vertices = basePoses.ToArray();
-			majorBase.uv = baseUVs.ToArray();
-			majorBase.triangles = baseIndices.ToArray();
-			majorBase.UploadMeshData(true);
-
-			majorLines.vertices = linePoses.ToArray();
-			majorLines.uv = lineUVs.ToArray();
-			majorLines.triangles = lineIndices.ToArray();
-			majorLines.UploadMeshData(true);
+									   baseVerts, lineVerts,
+									   new Vector2(MajorRoadLines.width, MajorRoadLines.height));
+			CreateRoadObject(baseVerts, OpaqueRoadMat, MajorRoadBase, "Major Road Base Mesh");
+			CreateRoadObject(lineVerts, TransparentRoadMat, MajorRoadLines, "Major Road Line Mesh");
 
 
-			//Generate meshes for the major roads.
+			//Generate minor roads.
+			UnityEngine.Random.seed = BlockLayoutGen.Seed;
+			foreach (Rect block in CityLayoutGen.Blocks)
+			{
+				BlockLayoutGenerator blockGen = new BlockLayoutGenerator(block, BlockLayoutGen);
+				blockGen.Seed = UnityEngine.Random.Range(0, 999191919);
+				blockGen.Generate();
 
-			GameObject baseMajorRoad = new GameObject("Major Roads Base");
-			baseMajorRoad.transform.position = Vector3.zero;
-			baseMajorRoad.transform.parent = roadContainer;
-			MeshFilter mf = baseMajorRoad.AddComponent<MeshFilter>();
-			mf.mesh = majorBase;
-			MeshRenderer mr = baseMajorRoad.AddComponent<MeshRenderer>();
-			mr.material = OpaqueRoadMat;
-			mr.material.mainTexture = MajorRoadBase;
-
-			GameObject lineMajorRoad = new GameObject("Major Roads Lines");
-			lineMajorRoad.transform.position = Vector3.zero;
-			lineMajorRoad.transform.parent = roadContainer;
-			mf = lineMajorRoad.AddComponent<MeshFilter>();
-			mf.mesh = majorLines;
-			mr = lineMajorRoad.AddComponent<MeshRenderer>();
-			mr.material = TransparentRoadMat;
-			mr.material.mainTexture = MajorRoadLines;
+				RoadVertList baseVertsRoad = new RoadVertList(),
+							 lineVertsRoad = new RoadVertList(),
+							 baseVertsAlley = new RoadVertList(),
+							 lineVertsAlley = new RoadVertList();
+				RoadGen.GenerateMinorRoads(blockGen.VerticalRoads, blockGen.HorizontalRoads,
+										   baseVertsRoad, lineVertsRoad, baseVertsAlley, lineVertsAlley,
+										   new Vector2(AlleyLines.width, AlleyLines.height),
+										   new Vector2(MinorRoadLines.width, MinorRoadLines.height));
+				CreateRoadObject(baseVertsRoad, OpaqueRoadMat, MinorRoadBase, "Minor Road Base Mesh");
+				CreateRoadObject(baseVertsAlley, OpaqueRoadMat, AlleyBase, "Alley Base Mesh");
+				CreateRoadObject(lineVertsRoad, TransparentRoadMat, MinorRoadLines, "Minor Road Lines Mesh");
+				CreateRoadObject(lineVertsAlley, TransparentRoadMat, AlleyLines, "Alley Lines Mesh");
+			}
 		}
+	}
+
+	private void CreateRoadObject(RoadVertList verts, Material mat, Texture2D tex, string objectName)
+	{
+		Mesh msh = new Mesh();
+
+		msh.vertices = verts.Poses.ToArray();
+		msh.uv = verts.UVs.ToArray();
+		msh.triangles = verts.Indices.ToArray();
+
+		GameObject obj = new GameObject(objectName);
+		obj.transform.position = Vector3.zero;
+		obj.transform.parent = roadContainer;
+		MeshFilter mf = obj.AddComponent<MeshFilter>();
+		mf.mesh = msh;
+		MeshRenderer mr = obj.AddComponent<MeshRenderer>();
+		mr.material = mat;
+		mr.material.mainTexture = tex;
 	}
 }

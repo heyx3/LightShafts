@@ -10,95 +10,160 @@ using UnityEngine;
 [Serializable]
 public class RoadGenerator
 {
-	public float BaseRoadDepth = 0.0f;
-	public float BaseRoadTexScale = 0.25f;
-
-
-	/// <summary>
-	/// Creates road mesh data for the given stretch of road.
-	/// Puts mesh data into the "base" mesh and the "lines" mesh.
-	/// </summary>
-	public static void CreateRoad(Vector2 start, Vector2 end, float roadWidth, float posZ,
-								  List<Vector3> basePoses, List<Vector2> baseUVs, List<int> baseIndices,
-								  List<Vector3> linePoses, List<Vector2> lineUVs, List<int> lineIndices,
-								  float lineTexHeight, float baseRoadScale)
+	public class RoadVertexList
 	{
-		Vector2 towardsEnd = (end - start).normalized,
-				perp = new Vector2(-towardsEnd.y, towardsEnd.x);
-		Vector2 dir1 = perp * (roadWidth * 0.5f),
-				dir2 = perp * (roadWidth * -0.5f);
-
-		int startI = linePoses.Count;
-		linePoses.Add(new Vector3(start.x + dir1.x, start.y + dir1.y, posZ));
-		lineUVs.Add(new Vector2(0.0f, 0.0f));
-		linePoses.Add(new Vector3(start.x + dir2.x, start.y + dir2.y, posZ));
-		lineUVs.Add(new Vector2(0.0f, 1.0f));
-		linePoses.Add(new Vector3(end.x + dir1.x, end.y + dir1.y, posZ));
-		lineUVs.Add(new Vector2((end - start).magnitude / lineTexHeight, 0.0f));
-		linePoses.Add(new Vector3(end.x + dir2.x, end.y + dir2.y, posZ));
-		lineUVs.Add(new Vector2(lineUVs[startI + 2].x, 1.0f));
-
-		lineIndices.Add(startI);
-		lineIndices.Add(startI + 2);
-		lineIndices.Add(startI + 1);
-		lineIndices.Add(startI + 2);
-		lineIndices.Add(startI + 3);
-		lineIndices.Add(startI + 1);
-
-
-		startI = basePoses.Count;
-		basePoses.Add(linePoses[linePoses.Count - 4]);
-		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[linePoses.Count - 3]);
-		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[linePoses.Count - 2]);
-		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[linePoses.Count - 1]);
-		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		
-		basePoses[startI] += new Vector3(0.0f, 0.0f, 1f);
-		basePoses[startI + 1] += new Vector3(0.0f, 0.0f, 1f);
-		basePoses[startI + 2] += new Vector3(0.0f, 0.0f, 1f);
-		basePoses[startI + 3] += new Vector3(0.0f, 0.0f, 1f);
-		
-		baseIndices.Add(startI);
-		baseIndices.Add(startI + 2);
-		baseIndices.Add(startI + 1);
-		baseIndices.Add(startI + 2);
-		baseIndices.Add(startI + 3);
-		baseIndices.Add(startI + 1);
+		public List<Vector3> Poses = new List<Vector3>();
+		public List<Vector2> UVs = new List<Vector2>();
+		public List<int> Indices = new List<int>();
 	}
+
+	public static void CreateHorzRoad(float startX, float endX, float y, float thickness, float posZ,
+									  Vector2 lineTexSize, float baseRoadScale, float lineRoadScale,
+									  RoadVertexList baseVerts, RoadVertexList lineVerts)
+	{
+		float halfThickness = thickness * 0.5f;
+		float finalLineTexScale = lineTexSize.x / lineTexSize.y / thickness;
+		
+
+		//Line texture.
+
+		int startLineI = lineVerts.Poses.Count;
+
+		lineVerts.Poses.Add(new Vector3(startX, y - halfThickness, posZ));
+		lineVerts.UVs.Add(new Vector2(startX * finalLineTexScale, 0.0f));
+		lineVerts.Poses.Add(new Vector3(startX, y + halfThickness, posZ));
+		lineVerts.UVs.Add(new Vector2(startX * finalLineTexScale, 1.0f));
+		lineVerts.Poses.Add(new Vector3(endX, y - halfThickness, posZ));
+		lineVerts.UVs.Add(new Vector2(endX * finalLineTexScale, 0.0f));
+		lineVerts.Poses.Add(new Vector3(endX, y + halfThickness, posZ));
+		lineVerts.UVs.Add(new Vector2(endX * finalLineTexScale, 1.0f));
+
+		lineVerts.Indices.Add(startLineI);
+		lineVerts.Indices.Add(startLineI + 1);
+		lineVerts.Indices.Add(startLineI + 2);
+		lineVerts.Indices.Add(startLineI + 2);
+		lineVerts.Indices.Add(startLineI + 1);
+		lineVerts.Indices.Add(startLineI + 3);
+
+
+		//Base texture.
+
+		int startBaseI = baseVerts.Poses.Count;
+		
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 1]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 2]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 3]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+
+		for (int i = startBaseI; i <= startBaseI + 3; ++i)
+			baseVerts.Poses[i] += new Vector3(0.0f, 0.0f, 1.0f);
+		
+		baseVerts.Indices.Add(startBaseI);
+		baseVerts.Indices.Add(startBaseI + 1);
+		baseVerts.Indices.Add(startBaseI + 2);
+		baseVerts.Indices.Add(startBaseI + 2);
+		baseVerts.Indices.Add(startBaseI + 1);
+		baseVerts.Indices.Add(startBaseI + 3);
+	}
+	public static void CreateVertRoad(float startY, float endY, float x, float thickness, float posZ,
+									  Vector2 lineTexSize, float baseRoadScale, float lineRoadScale,
+									  RoadVertexList baseVerts, RoadVertexList lineVerts)
+	{
+		float halfThickness = thickness * 0.5f;
+		float finalLineTexScale = lineTexSize.x / lineTexSize.y / thickness;
+		
+
+		//Line texture.
+
+		int startLineI = lineVerts.Poses.Count;
+
+		lineVerts.Poses.Add(new Vector3(x - halfThickness, startY, posZ));
+		lineVerts.UVs.Add(new Vector2(startY * finalLineTexScale, 0.0f));
+		lineVerts.Poses.Add(new Vector3(x + halfThickness, startY, posZ));
+		lineVerts.UVs.Add(new Vector2(startY * finalLineTexScale, 1.0f));
+		lineVerts.Poses.Add(new Vector3(x - halfThickness, endY, posZ));
+		lineVerts.UVs.Add(new Vector2(endY * finalLineTexScale, 0.0f));
+		lineVerts.Poses.Add(new Vector3(x + halfThickness, endY, posZ));
+		lineVerts.UVs.Add(new Vector2(endY * finalLineTexScale, 1.0f));
+
+		lineVerts.Indices.Add(startLineI);
+		lineVerts.Indices.Add(startLineI + 2);
+		lineVerts.Indices.Add(startLineI + 1);
+		lineVerts.Indices.Add(startLineI + 2);
+		lineVerts.Indices.Add(startLineI + 3);
+		lineVerts.Indices.Add(startLineI + 1);
+
+
+		//Base texture.
+
+		int startBaseI = baseVerts.Poses.Count;
+		
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 1]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 2]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(lineVerts.Poses[startLineI + 3]);
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+
+		for (int i = startBaseI; i <= startBaseI + 3; ++i)
+			baseVerts.Poses[i] += new Vector3(0.0f, 0.0f, 1.0f);
+		
+		baseVerts.Indices.Add(startBaseI);
+		baseVerts.Indices.Add(startBaseI + 2);
+		baseVerts.Indices.Add(startBaseI + 1);
+		baseVerts.Indices.Add(startBaseI + 2);
+		baseVerts.Indices.Add(startBaseI + 3);
+		baseVerts.Indices.Add(startBaseI + 1);
+	}
+
 	/// <summary>
 	/// Creates road mesh data for the given intersection of two identical roads.
 	/// Puts mesh data into the "base" mesh and the "lines" mesh.
 	/// </summary>
-	public void CreateIntersection(Vector2 intersectionCenter, float width, float height,
-								   float posZ, float baseRoadScale,
-								   List<Vector3> basePoses, List<Vector2> baseUvs, List<int> baseIndices,
-								   List<Vector3> linePoses, List<Vector2> lineUvs, List<int> lineIndices)
+	public static void CreateIntersection(Vector2 intersectionCenter, float width, float height,
+										  float posZ, float baseRoadScale,
+										  RoadVertexList baseVerts, RoadVertexList lineVerts)
 	{
 		Vector2 halfSize = new Vector2(width, height) * 0.5f;
 		Vector2 min = intersectionCenter - halfSize,
 				max = intersectionCenter + halfSize;
 
-		int baseStartI = basePoses.Count;
-		basePoses.Add(new Vector3(min.x, min.y, posZ));
-		baseUvs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(new Vector3(min.x, max.y, posZ));
-		baseUvs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(new Vector3(max.x, min.y, posZ));
-		baseUvs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(new Vector3(max.x, max.y, posZ));
-		baseUvs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
+		int baseStartI = baseVerts.Poses.Count;
+		baseVerts.Poses.Add(new Vector3(min.x, min.y, posZ));
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(new Vector3(min.x, max.y, posZ));
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(new Vector3(max.x, min.y, posZ));
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
+		baseVerts.Poses.Add(new Vector3(max.x, max.y, posZ));
+		baseVerts.UVs.Add((Vector2)baseVerts.Poses[baseVerts.Poses.Count - 1] * baseRoadScale);
 		
-		baseIndices.Add(baseStartI);
-		baseIndices.Add(baseStartI + 1);
-		baseIndices.Add(baseStartI + 2);
-		baseIndices.Add(baseStartI + 2);
-		baseIndices.Add(baseStartI + 1);
-		baseIndices.Add(baseStartI + 3);
+		baseVerts.Indices.Add(baseStartI);
+		baseVerts.Indices.Add(baseStartI + 1);
+		baseVerts.Indices.Add(baseStartI + 2);
+		baseVerts.Indices.Add(baseStartI + 2);
+		baseVerts.Indices.Add(baseStartI + 1);
+		baseVerts.Indices.Add(baseStartI + 3);
 	}
 
+
+	public float BaseRoadDepth = 0.0f;
+	public float BaseRoadTexScale = 0.25f,
+				 LineRoadTexScale = 0.25f;
+
+	public float MinorRoadMinWidth = 50.0f;
+
+
+	private float GetRandDepth()
+	{
+		return UnityEngine.Random.Range(BaseRoadDepth - 0.03f, BaseRoadDepth + 0.03f);
+	}
 
 	/// <summary>
 	/// Generates mesh data for the given major roads.
@@ -107,46 +172,107 @@ public class RoadGenerator
 	/// </summary>
 	public void GenerateMajorRoads(List<CityLayoutGenerator.Road> vertRoads,
 								   List<CityLayoutGenerator.Road> horzRoads,
-								   List<Vector3> basePoses, List<Vector2> baseUVs, List<int> baseIndices,
-								   List<Vector3> linePoses, List<Vector2> lineUVs, List<int> lineIndices,
-								   float lineTexHeight)
+								   RoadVertexList baseVerts, RoadVertexList lineVerts,
+								   Vector2 lineTexSize)
 	{
-		float texCoordScale = 1.0f / BaseRoadTexScale;
-
 		for (int x = 0; x < vertRoads.Count; ++x)
 		{
 			for (int y = 0; y < horzRoads.Count; ++y)
 			{
 				//Generate the intersection.
 				CreateIntersection(new Vector2(vertRoads[x].Pos, horzRoads[y].Pos),
-								   vertRoads[x].Width, horzRoads[y].Width,
-								   UnityEngine.Random.Range(BaseRoadDepth - 0.03f, BaseRoadDepth + 0.03f),
-								   BaseRoadTexScale,
-								   basePoses, baseUVs, baseIndices, linePoses, lineUVs, lineIndices);
+								   vertRoads[x].Width, horzRoads[y].Width, GetRandDepth(),
+								   BaseRoadTexScale, baseVerts, lineVerts);
 
 				//Generate the road from this intersection towards the right.
 				if (x < vertRoads.Count - 1)
 				{
-					CreateRoad(new Vector2(vertRoads[x].Pos + (0.5f * vertRoads[x].Width),
-										   horzRoads[y].Pos),
-							   new Vector2(vertRoads[x + 1].Pos - (0.5f * vertRoads[x + 1].Width),
-										   horzRoads[y].Pos),
-							   horzRoads[y].Width,
-							   UnityEngine.Random.Range(BaseRoadDepth - 0.03f, BaseRoadDepth + 0.03f),
-							   basePoses, baseUVs, baseIndices, linePoses, lineUVs, lineIndices,
-							   lineTexHeight, BaseRoadTexScale);
+					CreateHorzRoad(vertRoads[x].Pos + (0.5f * vertRoads[x].Width),
+								   vertRoads[x + 1].Pos - (0.5f * vertRoads[x + 1].Width),
+								   horzRoads[y].Pos, horzRoads[y].Width, GetRandDepth(),
+								   lineTexSize, BaseRoadTexScale, LineRoadTexScale, baseVerts, lineVerts);
 				}
 				//Generate the road from this intersection towards the positive Y.
 				if (y < vertRoads.Count - 1)
 				{
-					CreateRoad(new Vector2(vertRoads[x].Pos,
-										   horzRoads[y].Pos + (0.5f * horzRoads[y].Width)),
-							   new Vector2(vertRoads[x].Pos,
-										   horzRoads[y + 1].Pos - (0.5f * horzRoads[y + 1].Width)),
-							   vertRoads[x].Width,
-							   UnityEngine.Random.Range(BaseRoadDepth - 0.03f, BaseRoadDepth + 0.03f),
-							   basePoses, baseUVs, baseIndices, linePoses, lineUVs, lineIndices,
-							   lineTexHeight, BaseRoadTexScale);
+					CreateVertRoad(horzRoads[y].Pos + (0.5f * horzRoads[y].Width),
+								   horzRoads[y + 1].Pos - (0.5f * horzRoads[y + 1].Width),
+								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
+								   lineTexSize, BaseRoadTexScale, LineRoadTexScale, baseVerts, lineVerts);
+				}
+			}
+		}
+	}
+	/// <summary>
+	/// Generates mesh data for the given minor roads/alleyways.
+	/// Assumes the vert and horz roads are given in increasing order by position.
+	/// Stores mesh data for the road lines and the base road tiles into the given lists.
+	/// </summary>
+	public void GenerateMinorRoads(List<CityLayoutGenerator.Road> vertRoads,
+								   List<CityLayoutGenerator.Road> horzRoads,
+								   RoadVertexList baseVertsRoad, RoadVertexList lineVertsRoad,
+								   RoadVertexList baseVertsAlley, RoadVertexList lineVertsAlley,
+								   Vector2 alleyLineTexSize, Vector2 minorRoadLineTexSize)
+	{
+		//Roads are only intercepted if a bigger or equal road intersects it.
+
+		for (int x = 0; x < vertRoads.Count; ++x)
+		{
+			bool isVertAlley = (vertRoads[x].Width < MinorRoadMinWidth);
+
+			for (int y = 0; y < horzRoads.Count; ++y)
+			{
+				bool isHorzAlley = (horzRoads[y].Width < MinorRoadMinWidth);
+
+
+				//If the intersection is between two of the same kind of road, draw an intersection.
+				//Otherwise, just continue the bigger road like normal.
+				if (isVertAlley == isHorzAlley)
+				{
+					CreateIntersection(new Vector2(vertRoads[x].Pos, horzRoads[y].Pos),
+									   vertRoads[x].Width, horzRoads[y].Width, GetRandDepth(),
+									   BaseRoadTexScale,
+									   (isVertAlley ? baseVertsAlley : baseVertsRoad),
+									   (isVertAlley ? lineVertsAlley : lineVertsRoad));
+				}
+				else if (isVertAlley)
+				{
+					CreateHorzRoad(vertRoads[x].Pos - (0.5f * vertRoads[x].Width),
+								   vertRoads[x].Pos + (0.5f * vertRoads[x].Width),
+								   horzRoads[y].Pos, horzRoads[y].Width, GetRandDepth(),
+								   minorRoadLineTexSize, BaseRoadTexScale, LineRoadTexScale,
+								   baseVertsRoad, lineVertsRoad);
+				}
+				else
+				{
+					CreateVertRoad(horzRoads[y].Pos - (0.5f * horzRoads[y].Width),
+								   horzRoads[y].Pos + (0.5f * horzRoads[y].Width),
+								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
+								   minorRoadLineTexSize, BaseRoadTexScale, LineRoadTexScale,
+								   baseVertsRoad, lineVertsRoad);
+				}
+
+				//Add a road pointing towards the right.
+				if (x < vertRoads.Count - 1)
+				{
+					CreateHorzRoad(vertRoads[x].Pos + (0.5f * vertRoads[x].Width),
+								   vertRoads[x + 1].Pos - (0.5f * vertRoads[x + 1].Width),
+								   horzRoads[y].Pos, horzRoads[y].Width, GetRandDepth(),
+								   (isHorzAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isHorzAlley ? baseVertsAlley : baseVertsRoad),
+								   (isHorzAlley ? lineVertsAlley : lineVertsRoad));
+				}
+				//Add a road pointing towards the positive Y.
+				if (y < horzRoads.Count - 1)
+				{
+					CreateVertRoad(horzRoads[y].Pos + (0.5f * horzRoads[y].Width),
+								   horzRoads[y + 1].Pos - (0.5f * horzRoads[y + 1].Width),
+								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
+								   (isVertAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isVertAlley ? baseVertsAlley : baseVertsRoad),
+								   (isVertAlley ? lineVertsAlley : lineVertsRoad));
 				}
 			}
 		}

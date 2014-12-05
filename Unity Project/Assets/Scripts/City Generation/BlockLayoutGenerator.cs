@@ -43,6 +43,10 @@ public class BlockLayoutGenerator
 		BuildingSpaces = new List<Rect>();
 		OpenSpaces = new List<Rect>();
 	}
+	public BlockLayoutGenerator(Rect area, BlockLayoutGenerator copy)
+		: this(area, copy.RoadWidthBase, copy.RoadWidthVariance,
+			   copy.BuildingSizeBase, copy.BuildingSizeVariance,
+			   copy.Seed, copy.EmptySpaceChance) { }
 	public BlockLayoutGenerator(Rect blockArea, float roadWidthBase, float roadWidthVariance,
 								Vector2 buildingSizeBase, Vector2 buildingSizeVariance,
 								int seed, float emptySpaceChance) : this()
