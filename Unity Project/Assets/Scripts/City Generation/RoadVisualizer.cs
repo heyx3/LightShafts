@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public class RoadVisualizer : MonoBehaviour
 {
-	public Material RoadMat;
+	public Material OpaqueRoadMat, TransparentRoadMat;
 	public Texture MajorRoadLines, MinorRoadLines, AlleyLines,
 				   MajorRoadBase, MinorRoadBase, AlleyBase;
 
@@ -24,10 +24,6 @@ public class RoadVisualizer : MonoBehaviour
 	void Awake()
 	{
 		roadContainer = new GameObject("Test Roads").transform;
-	}
-	void OnDestroy()
-	{
-		Destroy(roadContainer.gameObject);
 	}
 
 	void Update()
@@ -77,7 +73,7 @@ public class RoadVisualizer : MonoBehaviour
 			MeshFilter mf = baseMajorRoad.AddComponent<MeshFilter>();
 			mf.mesh = majorBase;
 			MeshRenderer mr = baseMajorRoad.AddComponent<MeshRenderer>();
-			mr.material = RoadMat;
+			mr.material = OpaqueRoadMat;
 			mr.material.mainTexture = MajorRoadBase;
 
 			GameObject lineMajorRoad = new GameObject("Major Roads Lines");
@@ -86,7 +82,7 @@ public class RoadVisualizer : MonoBehaviour
 			mf = lineMajorRoad.AddComponent<MeshFilter>();
 			mf.mesh = majorLines;
 			mr = lineMajorRoad.AddComponent<MeshRenderer>();
-			mr.material = RoadMat;
+			mr.material = TransparentRoadMat;
 			mr.material.mainTexture = MajorRoadLines;
 		}
 	}

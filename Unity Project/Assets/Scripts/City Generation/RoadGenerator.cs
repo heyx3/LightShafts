@@ -23,8 +23,6 @@ public class RoadGenerator
 								  List<Vector3> linePoses, List<Vector2> lineUVs, List<int> lineIndices,
 								  float lineTexHeight, float baseRoadScale)
 	{
-		float linesTexCoordXScale = roadWidth / lineTexHeight;
-
 		Vector2 towardsEnd = (end - start).normalized,
 				perp = new Vector2(-towardsEnd.y, towardsEnd.x);
 		Vector2 dir1 = perp * (roadWidth * 0.5f),
@@ -36,39 +34,39 @@ public class RoadGenerator
 		linePoses.Add(new Vector3(start.x + dir2.x, start.y + dir2.y, posZ));
 		lineUVs.Add(new Vector2(0.0f, 1.0f));
 		linePoses.Add(new Vector3(end.x + dir1.x, end.y + dir1.y, posZ));
-		lineUVs.Add(new Vector2((end - start).magnitude * linesTexCoordXScale, 0.0f));
+		lineUVs.Add(new Vector2((end - start).magnitude / lineTexHeight, 0.0f));
 		linePoses.Add(new Vector3(end.x + dir2.x, end.y + dir2.y, posZ));
 		lineUVs.Add(new Vector2(lineUVs[startI + 2].x, 1.0f));
 
 		lineIndices.Add(startI);
-		lineIndices.Add(startI + 1);
 		lineIndices.Add(startI + 2);
+		lineIndices.Add(startI + 1);
 		lineIndices.Add(startI + 2);
 		lineIndices.Add(startI + 3);
 		lineIndices.Add(startI + 1);
 
 
-		startI = linePoses.Count;
-		basePoses.Add(linePoses[startI - 4]);
+		startI = basePoses.Count;
+		basePoses.Add(linePoses[linePoses.Count - 4]);
 		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[startI - 3]);
+		basePoses.Add(linePoses[linePoses.Count - 3]);
 		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[startI - 2]);
+		basePoses.Add(linePoses[linePoses.Count - 2]);
 		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
-		basePoses.Add(linePoses[startI - 1]);
+		basePoses.Add(linePoses[linePoses.Count - 1]);
 		baseUVs.Add((Vector2)basePoses[basePoses.Count - 1] * baseRoadScale);
 		
-		basePoses[startI] -= new Vector3(0.0f, 0.0f, 0.001f);
-		basePoses[startI + 1] -= new Vector3(0.0f, 0.0f, 0.001f);
-		basePoses[startI + 2] -= new Vector3(0.0f, 0.0f, 0.001f);
-		basePoses[startI + 3] -= new Vector3(0.0f, 0.0f, 0.001f);
+		basePoses[startI] += new Vector3(0.0f, 0.0f, 1f);
+		basePoses[startI + 1] += new Vector3(0.0f, 0.0f, 1f);
+		basePoses[startI + 2] += new Vector3(0.0f, 0.0f, 1f);
+		basePoses[startI + 3] += new Vector3(0.0f, 0.0f, 1f);
 		
-		lineIndices.Add(startI);
-		lineIndices.Add(startI + 1);
-		lineIndices.Add(startI + 2);
-		lineIndices.Add(startI + 2);
-		lineIndices.Add(startI + 3);
-		lineIndices.Add(startI + 1);
+		baseIndices.Add(startI);
+		baseIndices.Add(startI + 2);
+		baseIndices.Add(startI + 1);
+		baseIndices.Add(startI + 2);
+		baseIndices.Add(startI + 3);
+		baseIndices.Add(startI + 1);
 	}
 	/// <summary>
 	/// Creates road mesh data for the given intersection of two identical roads.
@@ -97,8 +95,8 @@ public class RoadGenerator
 		baseIndices.Add(baseStartI + 1);
 		baseIndices.Add(baseStartI + 2);
 		baseIndices.Add(baseStartI + 2);
-		baseIndices.Add(baseStartI + 3);
 		baseIndices.Add(baseStartI + 1);
+		baseIndices.Add(baseStartI + 3);
 	}
 
 
@@ -117,12 +115,8 @@ public class RoadGenerator
 
 		for (int x = 0; x < vertRoads.Count; ++x)
 		{
-			float roadWidthX = vertRoads[x].Width;
-
 			for (int y = 0; y < horzRoads.Count; ++y)
 			{
-				float roadWidthY = horzRoads[y].Width;
-
 				//Generate the intersection.
 				CreateIntersection(new Vector2(vertRoads[x].Pos, horzRoads[y].Pos),
 								   vertRoads[x].Width, horzRoads[y].Width,
