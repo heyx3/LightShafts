@@ -14,6 +14,8 @@ public class BuildingGenerator
 	public List<GameObject> BuildingPrefabs = new List<GameObject>();
 	public List<Vector2> BuildingSizes = new List<Vector2>();
 
+	public float PlayerCollisionRadius = 32.0f;
+
 
 	public BuildingGenerator() { }
 	public BuildingGenerator(Rect buildingArea, BuildingGenerator copy)
@@ -56,14 +58,31 @@ public class BuildingGenerator
 		buildingTr.localScale = new Vector3(buildingTr.localScale.x * sizeDelta.x,
 											buildingTr.localScale.y * sizeDelta.y,
 											buildingTr.localScale.z);
-		buildingTr.position = new Vector3(BuildingArea.center.x, BuildingArea.center.y, buildingTr.position.z);
+		buildingTr.position = new Vector3(BuildingArea.center.x,
+										  BuildingArea.center.y,
+										  buildingTr.position.z);
 
 
-		//Add the path nodes on each corner of the building.
-
-		//TODO: Refator path node calculation so that it can happen on command, not just on creation.
+		//Add path nodes on each corner of the building.
 		Bounds collBounds = buildingTr.collider2D.bounds;
-		//GameObject minXY = new GameObject("Path Node MinXY Corner");
-		//minXY.AddComponent<NavNodeComponent>();
+		Transform minXY = new GameObject("Path Node MinXY Corner").transform,
+				  maxXY = new GameObject("Path Node MaxXY Corner").transform,
+				  minXMaxY = new GameObject("Path Node MinXMaxY Corner").transform,
+				  minYMaxX = new GameObject("Path Node MinYMaxX Corner").transform;
+		minXY.position = collBounds.min - new Vector3(PlayerCollisionRadius, PlayerCollisionRadius, 0.0f);
+		maxXY.position = collBounds.max + new Vector3(PlayerCollisionRadius, PlayerCollisionRadius, 0.0f);
+		minXMaxY.position = new Vector3(collBounds.min.x, collBounds.max.y, collBounds.center.z) +
+							new Vector3(-PlayerCollisionRadius, PlayerCollisionRadius, 0.0f);
+		minYMaxX.position = new Vector3(collBounds.max.x, collBounds.min.y, collBounds.center.z) +
+							new Vector3(PlayerCollisionRadius, -PlayerCollisionRadius, 0.0f);
+		minXY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
+		maxXY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
+		minXMaxY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
+		minYMaxX.gameObject.AddComponent<NavNodeComponent>().FindConnections();
+
+		
+		//Set up any path nodes in and around the building.
+		foreach (NavNodeComponent navNode in buildingTr.GetComponentsInChildren<NavNodeComponent>())
+			navNode.FindConnections();
 	}
 }

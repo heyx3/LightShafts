@@ -201,7 +201,8 @@ public class RoadGenerator
 	/// Assumes the vert and horz roads are given in increasing order by position.
 	/// Stores mesh data for the road lines and the base road tiles into the given lists.
 	/// </summary>
-	public void GenerateMinorRoads(List<CityLayoutGenerator.Road> vertRoads,
+	public void GenerateMinorRoads(Rect blockArea,
+								   List<CityLayoutGenerator.Road> vertRoads,
 								   List<CityLayoutGenerator.Road> horzRoads,
 								   TileVertexList baseVertsRoad, TileVertexList lineVertsRoad,
 								   TileVertexList baseVertsAlley, TileVertexList lineVertsAlley,
@@ -245,6 +246,27 @@ public class RoadGenerator
 								   baseVertsRoad, lineVertsRoad);
 				}
 
+				//Add a road pointing towards the left.
+				if (x == 0)
+				{
+					CreateHorzRoad(blockArea.xMin, vertRoads[x].Pos - (0.5f * vertRoads[x].Width),
+								   horzRoads[y].Pos, horzRoads[y].Width, GetRandDepth(),
+								   (isHorzAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isHorzAlley ? baseVertsAlley : baseVertsRoad),
+								   (isHorzAlley ? lineVertsAlley : lineVertsRoad));
+				}
+				//Add a road pointing towards the negative Y.
+				if (y == 0)
+				{
+					CreateVertRoad(blockArea.yMin, horzRoads[y].Pos - (0.5f * horzRoads[y].Width),
+								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
+								   (isVertAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isVertAlley ? baseVertsAlley : baseVertsRoad),
+								   (isVertAlley ? lineVertsAlley : lineVertsRoad));
+				}
+
 				//Add a road pointing towards the right.
 				if (x < vertRoads.Count - 1)
 				{
@@ -256,11 +278,30 @@ public class RoadGenerator
 								   (isHorzAlley ? baseVertsAlley : baseVertsRoad),
 								   (isHorzAlley ? lineVertsAlley : lineVertsRoad));
 				}
+				else
+				{
+					CreateHorzRoad(vertRoads[x].Pos + (0.5f * vertRoads[x].Width), blockArea.xMax,
+								   horzRoads[y].Pos, horzRoads[y].Width, GetRandDepth(),
+								   (isHorzAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isHorzAlley ? baseVertsAlley : baseVertsRoad),
+								   (isHorzAlley ? lineVertsAlley : lineVertsRoad));
+				}
+
 				//Add a road pointing towards the positive Y.
 				if (y < horzRoads.Count - 1)
 				{
 					CreateVertRoad(horzRoads[y].Pos + (0.5f * horzRoads[y].Width),
 								   horzRoads[y + 1].Pos - (0.5f * horzRoads[y + 1].Width),
+								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
+								   (isVertAlley ? alleyLineTexSize : minorRoadLineTexSize),
+								   BaseRoadTexScale, LineRoadTexScale,
+								   (isVertAlley ? baseVertsAlley : baseVertsRoad),
+								   (isVertAlley ? lineVertsAlley : lineVertsRoad));
+				}
+				else
+				{
+					CreateVertRoad(horzRoads[y].Pos + (0.5f * horzRoads[y].Width), blockArea.yMax,
 								   vertRoads[x].Pos, vertRoads[x].Width, GetRandDepth(),
 								   (isVertAlley ? alleyLineTexSize : minorRoadLineTexSize),
 								   BaseRoadTexScale, LineRoadTexScale,

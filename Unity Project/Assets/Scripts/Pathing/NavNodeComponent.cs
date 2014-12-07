@@ -21,13 +21,50 @@ public class NavNodeComponent : MonoBehaviour
 
 
 	public List<NavNodeComponent> Connections = new List<NavNodeComponent>();
-	public bool FindConnectionsAtStartup = true;
 
-	public float ConnectionSearchRadius = 1000.0f;
 
+	public float GizmoSphereRadius = 10.0f;
 	public Color GizmoColor = Color.white;
-	public float NodeRadius = 10.0f;
 
+
+	/// <summary>
+	/// Checks for any nav graph connections to the given nodes.
+	/// It is not a problem if this node is in the given list; it will just be ignored.
+	/// If "null" is passed for the list to check, this node will check ALL navigation nodes.
+	/// </summary>
+	public void FindConnections(List<NavNodeComponent> toCheck = null, float searchRadius = 9999999.0f)
+	{
+		if (toCheck == null) toCheck = Components;
+
+
+		//Find all nav nodes that are reachable.
+		Vector2 myPos = (Vector2)MyTransform.position;
+		float playerRadius = PlayerInput.Instance.GetComponent<CircleCollider2D>().bounds.extents.x;
+		float searchRadiusSqr = searchRadius * searchRadius;
+
+		foreach (NavNodeComponent navNode in toCheck)
+		{
+			//Don't check the node if it's already known to connect or if it's actually this node.
+			if (navNode == this || Connections.Contains(navNode))
+				continue;
+
+			//Don't check the node if it's too far away.
+			Vector2 rayDir = navNode.node.Pos - myPos;
+			float rayLenSqr = rayDir.sqrMagnitude;
+			if (rayLenSqr > searchRadiusSqr)
+				continue;
+
+			//Check the node.
+			float rayLen = Mathf.Sqrt(rayLenSqr);
+			RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
+													MovementHandler.NavBlockerOnlyLayerMask);
+			if (hit.collider == null)
+			{
+				Connections.Add(navNode);
+				navNode.Connections.Add(this);
+			}
+		}
+	}
 
 
 	void Awake()
@@ -37,47 +74,6 @@ public class NavNodeComponent : MonoBehaviour
 
 		node.Pos = (Vector2)MyTransform.position;
 	}
-
-	void Start()
-	{
-		Vector2 myPos = (Vector2)MyTransform.position;
-		float playerRadius = PlayerInput.Instance.GetComponent<CircleCollider2D>().bounds.extents.x;
-
-		if (FindConnectionsAtStartup)
-		{
-			//Get any connections that haven't been found yet.
-			for (int i = 0; i < Components.Count; ++i)
-			{
-				if (Components[i] == this || Connections.Contains(Components[i]))
-					continue;
-
-				Vector2 rayDir = Components[i].node.Pos - myPos;
-				float rayLenSqr = rayDir.sqrMagnitude;
-
-				if (rayLenSqr > (ConnectionSearchRadius * ConnectionSearchRadius))
-					continue;
-
-				float rayLen = Mathf.Sqrt(rayLenSqr);
-				RaycastHit2D hit = Physics2D.CircleCast(myPos, playerRadius, rayDir / rayLen, rayLen,
-														MovementHandler.NavBlockerOnlyLayerMask);
-
-				if (hit.collider == null)
-				{
-					Connections.Add(Components[i]);
-					if (Components[i].FindConnectionsAtStartup && !Components[i].Connections.Contains(this))
-					{
-						Components[i].Connections.Add(this);
-					}
-				}
-			}
-		}
-
-		if (!Graph.ConnectionsFromNode.ContainsKey(node))
-		{
-			Graph.ConnectionsFromNode.Add(node, Connections);
-		}
-	}
-
 	void OnDestroy()
 	{
 		Graph.ConnectionsFromNode.Remove(node);
@@ -94,22 +90,16 @@ public class NavNodeComponent : MonoBehaviour
 		node.Pos = (Vector2)MyTransform.position;
 	}
 
-
 	void OnDrawGizmos()
 	{
 		Gizmos.color = GizmoColor;
-		Gizmos.DrawSphere(transform.position, NodeRadius);
+		Gizmos.DrawSphere(transform.position, GizmoSphereRadius);
 	}
 	void OnDrawGizmosSelected()
 	{
 		if (!Application.isEditor) return;
 
 		Gizmos.color = GizmoColor;
-
-		if (FindConnectionsAtStartup && !Application.isPlaying)
-		{
-			Gizmos.DrawWireSphere(transform.position, ConnectionSearchRadius);
-		}
 
 		MyTransform = transform;
 		Vector3 startP = MyTransform.position;
@@ -128,8 +118,8 @@ public class NavNodeComponent : MonoBehaviour
 			Vector3 arrowDir1 = (endToStartNorm + endToStartNormPerp) * 0.5f,
 				    arrowDir2 = (endToStartNorm - endToStartNormPerp) * 0.5f;
 
-			Gizmos.DrawLine(endP, endP + (NodeRadius * 2.0f * arrowDir1));
-			Gizmos.DrawLine(endP, endP + (NodeRadius * 2.0f * arrowDir2));
+			Gizmos.DrawLine(endP, endP + (GizmoSphereRadius * 2.0f * arrowDir1));
+			Gizmos.DrawLine(endP, endP + (GizmoSphereRadius * 2.0f * arrowDir2));
 		}
 	}
 }

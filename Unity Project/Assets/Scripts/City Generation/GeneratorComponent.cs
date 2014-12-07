@@ -18,18 +18,62 @@ public class GeneratorComponent : MonoBehaviour
 	public Material OpaqueTileMat, TransparentTileMat;
 	public Texture2D MajorRoadLines, MinorRoadLines, AlleyLines,
 				     MajorRoadBase, MinorRoadBase, AlleyBase;
+	public Texture2D LargeOpenSpace, SmallOpenSpace;
+
+	public float LargeOpenSpaceScale = 8.0f,
+				 SmallOpenSpaceScale = 8.0f;
+
+	public float OpenSpacesZ = 2.0f;
 
 
-	private Transform roadContainer = null;
+	private Transform tileContainer = null;
 
 
+	private class NavRoadway
+	{
+		//Each vertical street's navigation nodes in ascending order by Y position.
+		//The roads themselves are ordered in ascending order by position.
+		public List<List<NavNode>> VertRoads = new List<List<NavNode>>();
+		//Each horizontal street's navigation nodes in ascending order by X position.
+		//The roads themselves are ordered in ascending order by position.
+		public List<List<NavNode>> HorzRoads = new List<List<NavNode>>();
+	}
 	void Awake()
 	{
-		roadContainer = new GameObject("Road Tiles").transform;
+		tileContainer = new GameObject("Tiles").transform;
 
 
 		//Generate city.
 		CityLayoutGen.Generate();
+
+
+		//Generate large open spaces.
+
+		TileVertexList spaceVerts = new TileVertexList();
+		List<Rect> openBlocks = new List<Rect>();
+		openBlocks.AddRange(CityLayoutGen.OpenSpaces);
+		foreach (Rect space in CityLayoutGen.OpenSpaces)
+		{
+			int startI = spaceVerts.Poses.Count;
+
+			spaceVerts.Poses.Add(new Vector3(space.xMin, space.yMin, OpenSpacesZ));
+			spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * LargeOpenSpaceScale);
+			spaceVerts.Poses.Add(new Vector3(space.xMin, space.yMax, OpenSpacesZ));
+			spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * LargeOpenSpaceScale);
+			spaceVerts.Poses.Add(new Vector3(space.xMax, space.yMin, OpenSpacesZ));
+			spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * LargeOpenSpaceScale);
+			spaceVerts.Poses.Add(new Vector3(space.xMax, space.yMax, OpenSpacesZ));
+			spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * LargeOpenSpaceScale);
+			
+			spaceVerts.Indices.Add(startI);
+			spaceVerts.Indices.Add(startI + 1);
+			spaceVerts.Indices.Add(startI + 2);
+			
+			spaceVerts.Indices.Add(startI + 2);
+			spaceVerts.Indices.Add(startI + 1);
+			spaceVerts.Indices.Add(startI + 3);
+		}
+		CreateTileObject(spaceVerts, OpaqueTileMat, LargeOpenSpace, "Large Open Spaces");
 
 
 		//Generate blocks.
@@ -37,6 +81,9 @@ public class GeneratorComponent : MonoBehaviour
 		UnityEngine.Random.seed = BlockLayoutGen.Seed;
 		
 		List<Rect> buildings = new List<Rect>();
+		List<Rect> openBuildings = new List<Rect>();
+		Dictionary<Rect, List<Road>> vertRoadsByBlock = new Dictionary<Rect, List<Road>>(),
+									 horzRoadsByBlock = new Dictionary<Rect, List<Road>>();
 		foreach (Rect block in CityLayoutGen.Blocks)
 		{
 			BlockLayoutGenerator blockGen = new BlockLayoutGenerator(block, BlockLayoutGen.RoadWidthBase,
@@ -46,6 +93,8 @@ public class GeneratorComponent : MonoBehaviour
 																	 UnityEngine.Random.Range(0, 99999999),
 																	 BlockLayoutGen.EmptySpaceChance);
 			blockGen.Generate();
+			vertRoadsByBlock.Add(block, blockGen.VerticalRoads);
+			horzRoadsByBlock.Add(block, blockGen.HorizontalRoads);
 
 			buildings.AddRange(blockGen.BuildingSpaces);
 			
@@ -54,7 +103,7 @@ public class GeneratorComponent : MonoBehaviour
 						   lineVertsMinor = new TileVertexList(),
 						   baseVertsAlley = new TileVertexList(),
 						   lineVertsAlley = new TileVertexList();
-			RoadGen.GenerateMinorRoads(blockGen.VerticalRoads, blockGen.HorizontalRoads,
+			RoadGen.GenerateMinorRoads(block, blockGen.VerticalRoads, blockGen.HorizontalRoads,
 									   baseVertsMinor, lineVertsMinor,
 									   baseVertsAlley, lineVertsAlley,
 									   new Vector2(AlleyLines.width, AlleyLines.height),
@@ -63,14 +112,33 @@ public class GeneratorComponent : MonoBehaviour
 			CreateTileObject(lineVertsMinor, TransparentTileMat, MinorRoadLines, "Minor Road Lines Mesh");
 			CreateTileObject(baseVertsAlley, OpaqueTileMat, AlleyBase, "Alley Base Mesh");
 			CreateTileObject(lineVertsAlley, TransparentTileMat, AlleyLines, "Alley Lines Mesh");
-		}
 
 
-		//Generate buildings.
-		foreach (Rect building in buildings)
-		{
-			BuildingGenerator buildGen = new BuildingGenerator(building, BuildingGen);
-			buildGen.GenerateBuilding();
+			//Generate empty building spaces.
+			spaceVerts = new TileVertexList();
+			openBuildings.AddRange(blockGen.OpenSpaces);
+			foreach (Rect space in blockGen.OpenSpaces)
+			{
+				int startI = spaceVerts.Poses.Count;
+
+				spaceVerts.Poses.Add(new Vector3(space.xMin, space.yMin, OpenSpacesZ));
+				spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * SmallOpenSpaceScale);
+				spaceVerts.Poses.Add(new Vector3(space.xMin, space.yMax, OpenSpacesZ));
+				spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * SmallOpenSpaceScale);
+				spaceVerts.Poses.Add(new Vector3(space.xMax, space.yMin, OpenSpacesZ));
+				spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * SmallOpenSpaceScale);
+				spaceVerts.Poses.Add(new Vector3(space.xMax, space.yMax, OpenSpacesZ));
+				spaceVerts.UVs.Add((Vector2)spaceVerts.Poses[spaceVerts.Poses.Count - 1] * SmallOpenSpaceScale);
+
+				spaceVerts.Indices.Add(startI);
+				spaceVerts.Indices.Add(startI + 1);
+				spaceVerts.Indices.Add(startI + 2);
+
+				spaceVerts.Indices.Add(startI + 2);
+				spaceVerts.Indices.Add(startI + 1);
+				spaceVerts.Indices.Add(startI + 3);
+			}
+			CreateTileObject(spaceVerts, OpaqueTileMat, SmallOpenSpace, "Small Open Space");
 		}
 
 
@@ -84,9 +152,57 @@ public class GeneratorComponent : MonoBehaviour
 		CreateTileObject(lineVertsMajor, TransparentTileMat, MajorRoadLines, "Major Road Line Mesh");
 
 
-		//Generate path nodes for roads.
-		//TODO: Implement.
+		//Generate buildings.
+		foreach (Rect building in buildings)
+		{
+			BuildingGenerator buildGen = new BuildingGenerator(building, BuildingGen);
+			buildGen.GenerateBuilding();
+		}
+
+
+		//Generate path nodes inside open spaces.
+
+		Vector2 maxRoadSize = 2.0f *
+							  new Vector2(CityLayoutGen.RoadWidthBase + CityLayoutGen.RoadWidthVariance,
+										  CityLayoutGen.RoadWidthBase + CityLayoutGen.RoadWidthVariance);
+		foreach (Rect space in openBlocks)
+		{
+			Transform spaceNode = new GameObject("Open Block Path Node").transform;
+			spaceNode.position = (Vector3)space.center;
+			NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
+			spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
+		}
+
+		maxRoadSize = 2.0f *
+					  new Vector2(BlockLayoutGen.RoadWidthBase + BlockLayoutGen.RoadWidthVariance,
+								  BlockLayoutGen.RoadWidthBase + BlockLayoutGen.RoadWidthVariance);
+		foreach (Rect space in openBuildings)
+		{
+			Transform spaceNode = new GameObject("Open Building Path Node").transform;
+			spaceNode.position = (Vector3)space.center;
+			NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
+			spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
+		}
 	}
+
+	void OnDrawGizmos()
+	{
+		Gizmos.color = Color.magenta;
+		
+		Vector2 cityLayoutMaxSize = new Vector2((CityLayoutGen.NBlocksX * (CityLayoutGen.BlockBaseSize.x +
+																		   CityLayoutGen.BlockSizeVariation.x)) +
+												 ((CityLayoutGen.NBlocksX + 1) *
+													(CityLayoutGen.RoadWidthBase +
+													 CityLayoutGen.RoadWidthVariance)),
+												(CityLayoutGen.NBlocksY * (CityLayoutGen.BlockBaseSize.y +
+																		   CityLayoutGen.BlockSizeVariation.y)) +
+												 ((CityLayoutGen.NBlocksY + 1) *
+													(CityLayoutGen.RoadWidthBase +
+													 CityLayoutGen.RoadWidthVariance)));
+		Rect cityBounds = new Rect(0.0f, 0.0f, cityLayoutMaxSize.x, cityLayoutMaxSize.y);
+		Gizmos.DrawCube(cityBounds.center, (Vector3)cityBounds.size + new Vector3(0, 0, 1));
+	}
+
 
 	private GameObject CreateTileObject(TileVertexList verts, Material mat, Texture2D tex, string objectName)
 	{
@@ -98,7 +214,7 @@ public class GeneratorComponent : MonoBehaviour
 
 		GameObject obj = new GameObject(objectName);
 		obj.transform.position = Vector3.zero;
-		obj.transform.parent = roadContainer;
+		obj.transform.parent = tileContainer;
 		MeshFilter mf = obj.AddComponent<MeshFilter>();
 		mf.mesh = msh;
 		MeshRenderer mr = obj.AddComponent<MeshRenderer>();

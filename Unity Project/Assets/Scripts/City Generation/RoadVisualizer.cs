@@ -61,7 +61,7 @@ public class RoadVisualizer : MonoBehaviour
 							   lineVertsRoad = new TileVertexList(),
 							   baseVertsAlley = new TileVertexList(),
 							   lineVertsAlley = new TileVertexList();
-				RoadGen.GenerateMinorRoads(blockGen.VerticalRoads, blockGen.HorizontalRoads,
+				RoadGen.GenerateMinorRoads(block, blockGen.VerticalRoads, blockGen.HorizontalRoads,
 										   baseVertsRoad, lineVertsRoad, baseVertsAlley, lineVertsAlley,
 										   new Vector2(AlleyLines.width, AlleyLines.height),
 										   new Vector2(MinorRoadLines.width, MinorRoadLines.height));
