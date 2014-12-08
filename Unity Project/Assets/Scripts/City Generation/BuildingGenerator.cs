@@ -26,8 +26,26 @@ public class BuildingGenerator
 	}
 
 
-	public void GenerateBuilding()
+	/// <summary>
+	/// A nav node and the search radius to use when finding its connections.
+	/// </summary>
+	public struct NodeToSearch
 	{
+		public NavNodeComponent Node;
+		public float SearchRadius;
+		public NodeToSearch(NavNodeComponent node, float searchRadius) { Node = node; SearchRadius = searchRadius; }
+	}
+	/// <summary>
+	/// Generates a building given this generator's fields.
+	/// Returns all the generated nav nodes and the search radii needed for each node when finding its connections.
+	/// </summary>
+	/// <param name="searchScale">The scale of the search radius for a building's nav nodes.
+	/// Should be something around "1.25f * largestPossibleBuildingRadius".</param>
+	public List<NodeToSearch> GenerateBuilding(float searchScale)
+	{
+		searchScale /= BuildingArea.size.magnitude;
+
+
 		//Get the building prefab that's closest in size to this area.
 
 		Vector2 targetSize = new Vector2(BuildingArea.width, BuildingArea.height);
@@ -63,7 +81,11 @@ public class BuildingGenerator
 										  buildingTr.position.z);
 
 
+		List<NodeToSearch> pathNodes = new List<NodeToSearch>();
+		pathNodes.Capacity = 4;
+
 		//Add path nodes on each corner of the building.
+		float searchDist = targetSize.magnitude * searchScale;
 		Bounds collBounds = buildingTr.collider2D.bounds;
 		Transform minXY = new GameObject("Path Node MinXY Corner").transform,
 				  maxXY = new GameObject("Path Node MaxXY Corner").transform,
@@ -75,14 +97,19 @@ public class BuildingGenerator
 							new Vector3(-PlayerCollisionRadius, PlayerCollisionRadius, 0.0f);
 		minYMaxX.position = new Vector3(collBounds.max.x, collBounds.min.y, collBounds.center.z) +
 							new Vector3(PlayerCollisionRadius, -PlayerCollisionRadius, 0.0f);
-		minXY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
-		maxXY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
-		minXMaxY.gameObject.AddComponent<NavNodeComponent>().FindConnections();
-		minYMaxX.gameObject.AddComponent<NavNodeComponent>().FindConnections();
+		pathNodes.Add(new NodeToSearch(minXY.gameObject.AddComponent<NavNodeComponent>(), searchDist));
+		pathNodes.Add(new NodeToSearch(maxXY.gameObject.AddComponent<NavNodeComponent>(), searchDist));
+		pathNodes.Add(new NodeToSearch(minXMaxY.gameObject.AddComponent<NavNodeComponent>(), searchDist));
+		pathNodes.Add(new NodeToSearch(minYMaxX.gameObject.AddComponent<NavNodeComponent>(), searchDist));
 
 		
 		//Set up any path nodes in and around the building.
-		foreach (NavNodeComponent navNode in buildingTr.GetComponentsInChildren<NavNodeComponent>())
-			navNode.FindConnections();
+		NavNodeComponent[] nodesInChildren = buildingTr.GetComponentsInChildren<NavNodeComponent>();
+		pathNodes.Capacity += nodesInChildren.Length;
+		foreach (NavNodeComponent navNode in nodesInChildren)
+			pathNodes.Add(new NodeToSearch(navNode, searchDist));
+
+
+		return pathNodes;
 	}
 }

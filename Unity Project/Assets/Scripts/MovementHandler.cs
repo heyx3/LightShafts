@@ -128,15 +128,15 @@ public class MovementHandler : MonoBehaviour
 			}
 		}
 
-		//Assert that there IS a visible node.
-		if (closestElement < 0)
+
+		//Set the closest node.
+		if (closestElement >= 0)
 		{
-			Debug.LogError("No node is within view of object '" + gameObject.name + "'!");
+			ClosestNode = NavNodeComponent.Components[closestElement];
 		}
 		else
 		{
-			//Set the closest node.
-			ClosestNode = NavNodeComponent.Components[closestElement];
+			ClosestNode = null;
 		}
 	}
 }

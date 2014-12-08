@@ -153,12 +153,19 @@ public class GeneratorComponent : MonoBehaviour
 
 
 		//Generate buildings.
+		List<BuildingGenerator.NodeToSearch> nodesToSearch = new List<BuildingGenerator.NodeToSearch>();
+		nodesToSearch.Capacity += buildings.Count * 4;
+		float largestPossibleBuildingRadius = (BlockLayoutGen.BuildingSizeBase +
+											   BlockLayoutGen.BuildingSizeVariance).magnitude;
 		foreach (Rect building in buildings)
 		{
 			BuildingGenerator buildGen = new BuildingGenerator(building, BuildingGen);
-			buildGen.GenerateBuilding();
+			nodesToSearch.AddRange(buildGen.GenerateBuilding(1.25f * largestPossibleBuildingRadius));
 		}
 
+		//foreach (BuildingGenerator.NodeToSearch ns in nodesToSearch)
+		//	ns.Node.FindConnections(null, ns.SearchRadius);
+		nodesToSearch.Clear();
 
 		//Generate path nodes inside open spaces.
 
@@ -169,8 +176,8 @@ public class GeneratorComponent : MonoBehaviour
 		{
 			Transform spaceNode = new GameObject("Open Block Path Node").transform;
 			spaceNode.position = (Vector3)space.center;
-			NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
-			spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
+			//NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
+			//spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
 		}
 
 		maxRoadSize = 2.0f *
@@ -180,8 +187,8 @@ public class GeneratorComponent : MonoBehaviour
 		{
 			Transform spaceNode = new GameObject("Open Building Path Node").transform;
 			spaceNode.position = (Vector3)space.center;
-			NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
-			spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
+			//NavNodeComponent spaceNavNode = spaceNode.gameObject.AddComponent<NavNodeComponent>();
+			//spaceNavNode.FindConnections(null, (maxRoadSize + space.size).magnitude);
 		}
 	}
 
